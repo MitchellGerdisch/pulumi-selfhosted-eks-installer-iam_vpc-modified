@@ -15,6 +15,7 @@ const rds = new RdsDatabase("rds-aurora-db", {
     securityGroupId : config.nodeSecurityGroupId,
     replicas: config.dbReplicas,
     instanceType: config.dbInstanceType,
+    databaseMonitoringRoleArn: config.databaseMonitoringRoleArn,
 });
 const db = rds.db;
 
@@ -40,6 +41,7 @@ const fluentd = new FluentdCloudWatch("fluentd-cloudwatch", {
     namespace: config.clusterSvcsNamespaceName,
     clusterOidcProviderArn: config.clusterOidcProviderArn,
     clusterOidcProviderUrl: config.clusterOidcProviderUrl,
+    fluentdRoleArn: config.fluentdRoleArn,
 });
 export const fluentdCloudWatchLogGroupName = fluentd.logGroupName;
 
@@ -58,6 +60,7 @@ const extDns = new ExternalDns("external-dns", {
     ],
     clusterOidcProviderArn: config.clusterOidcProviderArn,
     clusterOidcProviderUrl: config.clusterOidcProviderUrl,
+    serviceAccountRoleArn: config.externalDnsRoleArn,
 });
 
 // Deploy ALB Ingress Controller.
@@ -68,4 +71,5 @@ const albIngCntlr = new AlbIngressController("alb-ing-cntlr", {
     clusterName: config.clusterName,
     clusterOidcProviderArn: config.clusterOidcProviderArn,
     clusterOidcProviderUrl: config.clusterOidcProviderUrl,
+    albIngressRoleArn: config.albIngressRoleArn,
 });

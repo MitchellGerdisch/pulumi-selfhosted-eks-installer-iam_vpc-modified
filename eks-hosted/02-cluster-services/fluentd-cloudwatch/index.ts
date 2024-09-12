@@ -8,6 +8,7 @@ export type FluentdCloudWatchOptions = {
     provider: k8s.Provider;
     clusterOidcProviderArn: pulumi.Input<string>;
     clusterOidcProviderUrl: pulumi.Input<string>;
+    fluentdRoleArn: pulumi.Input<string>;
 };
 
 const pulumiComponentNamespace: string = "pulumi:FluentdCloudWatch";
@@ -30,11 +31,14 @@ export class FluentdCloudWatch extends pulumi.ComponentResource {
     ) {
         super(pulumiComponentNamespace, name, args, opts);
 
-        // ServiceAccount
-        this.iamRole = rbac.createIAM(name, args.namespace,
-            args.clusterOidcProviderArn, args.clusterOidcProviderUrl);
+        /// MOD - this role is created outside the stack.
+        // // AWS IAM ServiceAccount
+        // this.iamRole = rbac.createIAM(name, args.namespace,
+        //     args.clusterOidcProviderArn, args.clusterOidcProviderUrl);
+
+        // K8s resources
         this.serviceAccount = rbac.createServiceAccount(name,
-            args.provider, this.iamRole.arn, args.namespace);
+            args.provider, args.fluentdRoleArn, args.namespace);
         this.serviceAccountName = this.serviceAccount.metadata.name;
 
         // RBAC

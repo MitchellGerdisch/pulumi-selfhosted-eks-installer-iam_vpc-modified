@@ -10,6 +10,7 @@ export type AlbIngressControllerOptions = {
     clusterName: pulumi.Input<string>;
     clusterOidcProviderArn: pulumi.Input<string>;
     clusterOidcProviderUrl: pulumi.Input<string>;
+    albIngressRoleArn: pulumi.Input<string>;
 };
 
 const pulumiComponentNamespace: string = "pulumi:AlbIngressController";
@@ -32,11 +33,14 @@ export class AlbIngressController extends pulumi.ComponentResource {
 
         /// IAMSTUFF ///
         
-        // ServiceAccount
-        this.iamRole = rbac.createIAM(name, args.namespace,
-            args.clusterOidcProviderArn, args.clusterOidcProviderUrl);
+        /// MOD - role created outside of this stack
+        // // ServiceAccount
+        // this.iamRole = rbac.createIAM(name, args.namespace,
+        //     args.clusterOidcProviderArn, args.clusterOidcProviderUrl);
+
+        // K8s resources
         this.serviceAccount = rbac.createServiceAccount(name,
-            args.provider, this.iamRole.arn, args.namespace);
+            args.provider, args.albIngressRoleArn, args.namespace);
         this.serviceAccountName = this.serviceAccount.metadata.name;
 
         // RBAC ClusterRole

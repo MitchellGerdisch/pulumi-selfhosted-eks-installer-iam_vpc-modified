@@ -27,4 +27,11 @@ export const config = {
 
     // DNS Hosted Zone to manage with external-dns and use with ALB, ACM.
     hostedZoneDomainName: pulumiConfig.require("hostedZoneDomainName"),
+
+    // IAM stuff
+    // copy/pasta for now
+    databaseMonitoringRoleArn : "arn:aws:iam::052848974346:role/databaseInstanceMonitoringRole-83d2b2a",
+    externalDnsRoleArn : "arn:aws:iam::052848974346:role/external-dns-332b3d6",
+    fluentdRoleArn           : "arn:aws:iam::052848974346:role/fluentd-cloudwatch-1e3e947",
+    albIngressRoleArn: "arn:aws:iam::052848974346:role/alb-ing-cntlr-893c4f2",
 };

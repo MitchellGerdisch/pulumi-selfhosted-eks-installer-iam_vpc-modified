@@ -3,8 +3,8 @@ config:
   aws:region: us-east-2
   pulumi-selfhosted-03-apps:apiDisableEmailLogin: undefined
   pulumi-selfhosted-03-apps:apiDisableEmailSignup: undefined
-  pulumi-selfhosted-03-apps:clusterStackRef: mitch-self-01
-  pulumi-selfhosted-03-apps:clusterSvcsStackRef: mitch-self-02
+  pulumi-selfhosted-03-apps:clusterStackRef: organization/pulumi-selfhosted-01-cluster-configuration/mitch-self-01
+  pulumi-selfhosted-03-apps:clusterSvcsStackRef: organization/pulumi-selfhosted-02-cluster-services/mitch-self-02
   pulumi-selfhosted-03-apps:consoleHideEmailLogin: undefined
   pulumi-selfhosted-03-apps:consoleHideEmailSignup: undefined
   pulumi-selfhosted-03-apps:hostedZoneDomainName: pulumi-ce.team

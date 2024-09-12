@@ -10,6 +10,7 @@ export type ExternalDnsOptions = {
     commandArgs: pulumi.Input<any>;
     clusterOidcProviderArn: pulumi.Input<string>;
     clusterOidcProviderUrl: pulumi.Input<string>;
+    serviceAccountRoleArn: pulumi.Input<string>;
 };
 
 const pulumiComponentNamespace: string = "pulumi:ExternalDns";
@@ -30,20 +31,23 @@ export class ExternalDns extends pulumi.ComponentResource {
     ) {
         super(pulumiComponentNamespace, name, args, opts);
 
-        // ServiceAccount
-        this.iamRole = rbac.createIAM(name, args.namespace,
-            args.clusterOidcProviderArn, args.clusterOidcProviderUrl);
+        //// MOD - role and related attachments handled outside of this stack ////
+        // AWS IAM Role
+        // this.iamRole = rbac.createIAM(name, args.namespace,
+        //     args.clusterOidcProviderArn, args.clusterOidcProviderUrl);
+
+        // K8s Service Account
         this.serviceAccount = rbac.createServiceAccount(name,
-            args.provider, this.iamRole.arn, args.namespace);
+            args.provider, args.serviceAccountRoleArn, args.namespace);
         this.serviceAccountName = this.serviceAccount.metadata.name;
 
-        // RBAC ClusterRole
+        // K8s RBAC ClusterRole
         this.clusterRole = rbac.createClusterRole(name, args.provider);
         this.clusterRoleName = this.clusterRole.metadata.apply(m => m.name);
         this.clusterRoleBinding = rbac.createClusterRoleBinding(
             name, args.provider, args.namespace, this.serviceAccountName, this.clusterRoleName);
 
-        // Deployment
+        // K8s Deployment
         const labels = { app: name };
         this.deployment = createDeployment(
             name, args.provider, args.namespace,

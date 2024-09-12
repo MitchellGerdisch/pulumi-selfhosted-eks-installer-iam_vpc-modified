@@ -63,5 +63,5 @@ export const eksInstanceRoleName = instanceRole.name;
 
 //// END 01-cluster-configuration IAM STUFF ////
 
-//// 02-cluster-services IAM STUFF ////
+
 

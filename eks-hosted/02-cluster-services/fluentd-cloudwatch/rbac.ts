@@ -2,54 +2,55 @@ import * as pulumi from "@pulumi/pulumi";
 import * as k8s from "@pulumi/kubernetes";
 import * as aws from "@pulumi/aws";
 
-// Create the AWS IAM policy and role.
-export function createIAM(
-    name: string,
-    namespace: pulumi.Input<string>,
-    clusterOidcProviderArn: pulumi.Input<string>,
-    clusterOidcProviderUrl: pulumi.Input<string>): aws.iam.Role
-{
-    // Create the IAM target policy and role for the Service Account.
-    const saAssumeRolePolicy = pulumi.all([clusterOidcProviderUrl, clusterOidcProviderArn, namespace]).apply(([url, arn, namespaceName]) => aws.iam.getPolicyDocument({
-        statements: [{
-            actions: ["sts:AssumeRoleWithWebIdentity"],
-            conditions: [{
-                test: "StringEquals",
-                values: [`system:serviceaccount:${namespaceName}:${name}`],
-                variable: `${url.replace("https://", "")}:sub`,
-            }],
-            effect: "Allow",
-            principals: [{
-                identifiers: [arn],
-                type: "Federated",
-            }],
-        }],
-    }));
+/// MOD - this function is no longer used or needed ///
+// // Create the AWS IAM policy and role.
+// export function createIAM(
+//     name: string,
+//     namespace: pulumi.Input<string>,
+//     clusterOidcProviderArn: pulumi.Input<string>,
+//     clusterOidcProviderUrl: pulumi.Input<string>): aws.iam.Role
+// {
+//     // Create the IAM target policy and role for the Service Account.
+//     const saAssumeRolePolicy = pulumi.all([clusterOidcProviderUrl, clusterOidcProviderArn, namespace]).apply(([url, arn, namespaceName]) => aws.iam.getPolicyDocument({
+//         statements: [{
+//             actions: ["sts:AssumeRoleWithWebIdentity"],
+//             conditions: [{
+//                 test: "StringEquals",
+//                 values: [`system:serviceaccount:${namespaceName}:${name}`],
+//                 variable: `${url.replace("https://", "")}:sub`,
+//             }],
+//             effect: "Allow",
+//             principals: [{
+//                 identifiers: [arn],
+//                 type: "Federated",
+//             }],
+//         }],
+//     }));
 
-    const saRole = new aws.iam.Role(name, {
-        assumeRolePolicy: saAssumeRolePolicy.json,
-    });
+//     const saRole = new aws.iam.Role(name, {
+//         assumeRolePolicy: saAssumeRolePolicy.json,
+//     });
     
-    // Based on:
-    // https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/EC2NewInstanceCWL.html
-    const policy = new aws.iam.Policy(name, {
-        description: "Allows Fluentd to manage CloudWatch Logs",
-        policy: JSON.stringify(
-            {
-                Version: "2012-10-17",
-                Statement: [{Effect: "Allow", Action: ["logs:*"], Resource: ["arn:aws:logs:*:*:*"]}]
-            }
-        )
-    });
+//     // Based on:
+//     // https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/EC2NewInstanceCWL.html
+//     const policy = new aws.iam.Policy(name, {
+//         description: "Allows Fluentd to manage CloudWatch Logs",
+//         policy: JSON.stringify(
+//             {
+//                 Version: "2012-10-17",
+//                 Statement: [{Effect: "Allow", Action: ["logs:*"], Resource: ["arn:aws:logs:*:*:*"]}]
+//             }
+//         )
+//     });
 
-    // Attach the policy to the role for the service account.
-    const rpa = new aws.iam.RolePolicyAttachment(name, {
-        policyArn: policy.arn,
-        role: saRole,
-    });
+//     // Attach the policy to the role for the service account.
+//     const rpa = new aws.iam.RolePolicyAttachment(name, {
+//         policyArn: policy.arn,
+//         role: saRole,
+//     });
 
-    return saRole;
-}
+//     return saRole;
+// }
 
 // Create a ServiceAccount.
 export function createServiceAccount(

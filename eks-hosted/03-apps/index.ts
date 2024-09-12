@@ -161,10 +161,13 @@ const serviceEnv = pulumi
     });
 
 // Create IAM and ServiceAccount for S3 access.
-const s3Role = rbac.createIAM(apiName, config.appsNamespaceName,
-    config.clusterOidcProviderArn, config.clusterOidcProviderUrl);
+/// MOD - s3Role is created outside the stack
+// const s3Role = rbac.createIAM(apiName, config.appsNamespaceName,
+//     config.clusterOidcProviderArn, config.clusterOidcProviderUrl);
+
+// K8s resources
 const serviceAccount = rbac.createServiceAccount(apiName,
-    provider, s3Role.arn, config.appsNamespaceName);
+    provider, config.s3AccessRoleArn, config.appsNamespaceName);
 const serviceAccountName = serviceAccount.metadata.name;
 
 // Minimum System Requirements (per replica):

@@ -58,4 +58,8 @@ export const config = {
     consoleHideEmailLogin: pulumiConfig.get("consoleHideEmailLogin") ?? 'false',
     apiDisableEmailSignup: pulumiConfig.get("apiDisableEmailSignup") ?? 'false',
     apiDisableEmailLogin: pulumiConfig.get("apiDisableEmailLogin") ?? 'false',
+
+    // IAM
+    s3AccessRoleArn          : "arn:aws:iam::052848974346:role/pulumi-api-955cc94",
+
 };
