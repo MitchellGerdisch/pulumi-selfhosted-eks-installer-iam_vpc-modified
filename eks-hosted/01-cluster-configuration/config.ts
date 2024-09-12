@@ -19,10 +19,12 @@ export const config = {
     pulumiNodeGroupMaxSize: pulumiConfig.getNumber("pulumiNodeGroupMaxSize") ?? 5,
 
     // currently copy/pasted from 01-iam stack outputs
+    eksInstanceRoleArn        : "arn:aws:iam::052848974346:role/mitch-self-01-instanceRole-role-a045dc4",
     eksInstanceRoleName       : "mitch-self-01-instanceRole-role-a045dc4",
+    eksServiceRoleArn         : "arn:aws:iam::052848974346:role/mitch-self-01-eksRole-role-27df638",
     eksServiceRoleName        : "mitch-self-01-eksRole-role-27df638",
-    nodegroupIamRoleArn       : "arn:aws:iam::052848974346:role/standardNodeGroup-eksClusterWorkerNode-d28d325",
-    nodegroupIamRoleName      : "standardNodeGroup-eksClusterWorkerNode-d28d325",
-    pulumiNodegroupIamRoleArn : "arn:aws:iam::052848974346:role/pulumiStandardNodeGroup-eksClusterWorkerNode-7658d88",
-    pulumiNodegroupIamRoleName: "pulumiStandardNodeGroup-eksClusterWorkerNode-7658d88",
+    nodegroupIamRoleArn       : "arn:aws:iam::052848974346:role/standardNodeGroup-eksClusterWorkerNode-63141c7",
+    nodegroupIamRoleName      : "standardNodeGroup-eksClusterWorkerNode-63141c7",
+    pulumiNodegroupIamRoleArn : "arn:aws:iam::052848974346:role/pulumiStandardNodeGroup-eksClusterWorkerNode-e7828e8",
+    pulumiNodegroupIamRoleName: "pulumiStandardNodeGroup-eksClusterWorkerNode-e7828e8",
 };

@@ -49,6 +49,7 @@ const eksRole = new aws.iam.Role("eksRole", {
     name: "mitch-self-01-eksRole-role-27df638",
 });
 export const eksServiceRoleName = eksRole.name;
+export const eksServiceRoleArn = eksRole.arn;
 
 const instanceRole = new aws.iam.Role("instanceRole", {
     assumeRolePolicy: "{\"Statement\":[{\"Action\":\"sts:AssumeRole\",\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"ec2.amazonaws.com\"}}],\"Version\":\"2012-10-17\"}",
@@ -60,6 +61,7 @@ const instanceRole = new aws.iam.Role("instanceRole", {
     name: "mitch-self-01-instanceRole-role-a045dc4",
 });
 export const eksInstanceRoleName = instanceRole.name;
+export const eksInstanceRoleArn = instanceRole.arn;
 
 //// END 01-cluster-configuration IAM STUFF ////
 

@@ -33,7 +33,7 @@ export const dbConn: DbConn = {
     password: rds.password, // db.masterPassword can possibly be undefined. Use rds.password instead.
 };
 
-const provider = new k8s.Provider("provider", {kubeconfig: config.kubeconfig});
+const provider = new k8s.Provider("provider", {kubeconfig: config.kubeconfig, deleteUnreachable: true});
 
 // Deploy fluentd-cloudwatch.
 const fluentd = new FluentdCloudWatch("fluentd-cloudwatch", {

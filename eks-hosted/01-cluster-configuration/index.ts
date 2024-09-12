@@ -157,12 +157,6 @@ function createAlbSecurityGroup(name: string, args: AlbSecGroupOptions, parent: 
 
 // --- EKS Cluster ---
 
-// const nodegroupIamRoleGotten = aws.iam.getRoleOutput({name: "goo"}).apply(role => {
-//     const unkRole = <unknown> role 
-//     const compatRole = <aws.iam.Role> unkRole
-//     return compatRole
-// })
-
 const serviceRole = aws.iam.Role.get("eksServiceRole", config.eksServiceRoleName)
 const instanceRole = aws.iam.Role.get("instanceRole", config.eksInstanceRoleName)
 const nodegroupIamRole = aws.iam.Role.get("nodegroupIamRole", config.nodegroupIamRoleName)
@@ -173,6 +167,7 @@ const cluster = new eks.Cluster(`${projectName}`, {
     ////////////////////////////
     /// MOD ///
     // authenticationMode: "API_AND_CONFIG_MAP",
+    // authenticationMode: "API",
     // accessEntries: {
     //     nodeGroupIamRole: {
     //         principalArn: config.nodegroupIamRoleArn,
@@ -180,6 +175,14 @@ const cluster = new eks.Cluster(`${projectName}`, {
     //     },
     //     pulumiNodeGroupIamRole: {
     //         principalArn: config.pulumiNodegroupIamRoleArn,
+    //         type: eks.AccessEntryType.EC2_LINUX
+    //     },
+    //     eksServiceRole: {
+    //         principalArn: config.eksServiceRoleArn,
+    //         type: eks.AccessEntryType.EC2_LINUX
+    //     },
+    //     eksInstanceRole: {
+    //         principalArn: config.eksInstanceRoleArn,
     //         type: eks.AccessEntryType.EC2_LINUX
     //     }
     // },

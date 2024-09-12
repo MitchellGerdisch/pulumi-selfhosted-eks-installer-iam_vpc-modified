@@ -23,7 +23,7 @@ const apiReplicas = config.apiReplicas;
 const consoleReplicas = config.consoleReplicas;
 
 // Create a k8s provider to the cluster.
-const provider = new k8s.Provider("provider", { kubeconfig: config.kubeconfig });
+const provider = new k8s.Provider("provider", { kubeconfig: config.kubeconfig, deleteUnreachable: true });
 
 // Configure secrets provider, the component the Pulumi Service uses to encrypt stack secrets.
 const secretsIntegration = configurePulumiSecretProvider(config, provider)
