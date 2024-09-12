@@ -1,0 +1,8 @@
+encryptionsalt: v1:eoLTCbUEa0g=:v1:x9Vau/Ncz0FwQNqi:M0NKpKHN6lckvJTPxx0vt1wBYIL/RA==
+config:
+  aws:region: us-east-2
+  pulumi-selfhosted-02-cluster-services:clusterStackRef: organization/pulumi-selfhosted-01-cluster-configuration/mitch-self-01
+  pulumi-selfhosted-02-cluster-services:dbInstanceType: db.t3.medium
+  pulumi-selfhosted-02-cluster-services:dbReplicas: "1"
+  pulumi-selfhosted-02-cluster-services:hostedZoneDomainName: pulumi-ce.team
+  pulumi-selfhosted-02-cluster-services:stackName: undefined
