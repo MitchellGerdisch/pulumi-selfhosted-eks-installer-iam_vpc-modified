@@ -3,7 +3,7 @@ build/
 *-config.yaml
 *kubeconfig*
 *.cert
-# *.key
+*.key
 node_modules
 package-lock.json
 01-cluster-configuration/*-01-cluster-configuration.yaml
