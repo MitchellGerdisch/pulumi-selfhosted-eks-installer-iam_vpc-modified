@@ -1,0 +1,3 @@
+name: build-iam-vpc-01 
+description: Used to create resources used by the 01-cluster-configuration stack
+runtime: nodejs

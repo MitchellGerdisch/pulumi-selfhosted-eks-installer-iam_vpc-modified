@@ -60,6 +60,6 @@ export const config = {
     apiDisableEmailLogin: pulumiConfig.get("apiDisableEmailLogin") ?? 'false',
 
     // IAM
-    s3AccessRoleArn          : "arn:aws:iam::052848974346:role/pulumi-api-955cc94",
+    s3AccessRoleArn          : pulumiConfig.require("s3AccessRoleArn"),
 
 };

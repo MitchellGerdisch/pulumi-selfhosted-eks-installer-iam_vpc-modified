@@ -8,9 +8,6 @@ const clusterStackRef = new pulumi.StackReference(pulumiConfig.require("clusterS
 
 export const config = {
     // Infra
-    vpcId: clusterStackRef.requireOutput("vpcId"),
-    privateSubnetIds: clusterStackRef.requireOutput("privateSubnetIds"),
-    publicSubnetIds: clusterStackRef.requireOutput("publicSubnetIds"),
     nodeSecurityGroupId: clusterStackRef.requireOutput("nodeSecurityGroupId"),
 
     // Cluster
@@ -28,10 +25,14 @@ export const config = {
     // DNS Hosted Zone to manage with external-dns and use with ALB, ACM.
     hostedZoneDomainName: pulumiConfig.require("hostedZoneDomainName"),
 
-    // IAM stuff
+    // Externally managed stuff
+    vpcId: pulumiConfig.require("vpcId"),
+    publicSubnetIds: pulumiConfig.requireObject<string[]>("publicSubnetIds"),
+    privateSubnetIds: pulumiConfig.requireObject<string[]>("privateSubnetIds"),
+
     // copy/pasta for now
-    databaseMonitoringRoleArn : "arn:aws:iam::052848974346:role/databaseInstanceMonitoringRole-83d2b2a",
-    externalDnsRoleArn : "arn:aws:iam::052848974346:role/external-dns-332b3d6",
-    fluentdRoleArn           : "arn:aws:iam::052848974346:role/fluentd-cloudwatch-1e3e947",
-    albIngressRoleArn: "arn:aws:iam::052848974346:role/alb-ing-cntlr-893c4f2",
+    databaseMonitoringRoleArn : pulumiConfig.require("databaseMonitoringRoleArn"),
+    externalDnsRoleArn : pulumiConfig.require("externalDnsRoleArn"),
+    fluentdRoleArn : pulumiConfig.require("fluentdRoleArn"),
+    albIngressRoleArn : pulumiConfig.require("albIngressRoleArn"), 
 };

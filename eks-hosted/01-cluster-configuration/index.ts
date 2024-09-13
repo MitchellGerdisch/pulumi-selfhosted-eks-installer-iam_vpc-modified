@@ -6,40 +6,43 @@ import * as pulumi from "@pulumi/pulumi";
 import { config } from "./config";
 
 // const projectName = pulumi.getProject();
-const projectName = "mitch-self-01"
+const projectName = config.projectName 
 const tags = { "Project": "pulumi-k8s-aws-cluster", "Owner": "pulumi"};
 
+/// CLEAN START 
 // --- Networking ---
 
-// Create a new VPC with custom settings.
-const name = "pulumi";
-const vpc = new awsx.ec2.Vpc(`${name}-vpc`,
-    {
-        cidrBlock: "172.16.0.0/16",
-        numberOfAvailabilityZones: 3,
-        subnetSpecs: [
-            // Any non-null value is valid.
-            { type: "Public", tags: {"kubernetes.io/role/elb": "1", ...tags}},
-            { type: "Private", tags: {"kubernetes.io/role/internal-elb": "1", ...tags}},
-        ],
-        tags: { "Name": `${name}-vpc`, ...tags},
-    },
-    {
-        transformations: [(args) => {
-            if (args.type === "aws:ec2/vpc:Vpc" || args.type === "aws:ec2/subnet:Subnet") {
-                return {
-                    props: args.props,
-                    opts: pulumi.mergeOptions(args.opts, { ignoreChanges: ["tags"] })
-                }
-            }
-            return undefined;
-        }],
-    }
-);
+// // Create a new VPC with custom settings.
+// const name = "pulumi";
+// const vpc = new awsx.ec2.Vpc(`${name}-vpc`,
+//     {
+//         cidrBlock: "172.16.0.0/16",
+//         numberOfAvailabilityZones: 3,
+//         subnetSpecs: [
+//             // Any non-null value is valid.
+//             { type: "Public", tags: {"kubernetes.io/role/elb": "1", ...tags}},
+//             { type: "Private", tags: {"kubernetes.io/role/internal-elb": "1", ...tags}},
+//         ],
+//         tags: { "Name": `${name}-vpc`, ...tags},
+//     },
+//     {
+//         transformations: [(args) => {
+//             if (args.type === "aws:ec2/vpc:Vpc" || args.type === "aws:ec2/subnet:Subnet") {
+//                 return {
+//                     props: args.props,
+//                     opts: pulumi.mergeOptions(args.opts, { ignoreChanges: ["tags"] })
+//                 }
+//             }
+//             return undefined;
+//         }],
+//     }
+// );
 
-export const vpcId = vpc.vpcId;
-export const publicSubnetIds = vpc.publicSubnetIds;
-export const privateSubnetIds = vpc.privateSubnetIds;
+// export const vpcId = vpc.vpcId;
+// export const publicSubnetIds = vpc.publicSubnetIds;
+// export const privateSubnetIds = vpc.privateSubnetIds;
+
+/// CLEAN END
 
 /*
 Minimum System Requirements (per replica):
@@ -159,8 +162,8 @@ function createAlbSecurityGroup(name: string, args: AlbSecGroupOptions, parent: 
 
 const serviceRole = aws.iam.Role.get("eksServiceRole", config.eksServiceRoleName)
 const instanceRole = aws.iam.Role.get("instanceRole", config.eksInstanceRoleName)
-const nodegroupIamRole = aws.iam.Role.get("nodegroupIamRole", config.nodegroupIamRoleName)
-const pulumiNodegroupIamRole = aws.iam.Role.get("pulumiNodegroupIamRole", config.pulumiNodegroupIamRoleName)
+// CLEAN const nodegroupIamRole = aws.iam.Role.get("nodegroupIamRole", config.nodegroupIamRoleName)
+// CLEAN const pulumiNodegroupIamRole = aws.iam.Role.get("pulumiNodegroupIamRole", config.pulumiNodegroupIamRoleName)
 
 // Create an EKS cluster.
 const cluster = new eks.Cluster(`${projectName}`, {
@@ -189,11 +192,12 @@ const cluster = new eks.Cluster(`${projectName}`, {
     // instanceRoles: [ nodegroupIamRole, pulumiNodegroupIamRole],
     // We keep these serviceRole and instanceRole properties to prevent the EKS provider from creating its own roles.
     serviceRole: serviceRole,
-    instanceRoles: [nodegroupIamRole, pulumiNodegroupIamRole, instanceRole],
+    // CLEAN instanceRoles: [nodegroupIamRole, pulumiNodegroupIamRole, instanceRole],
+    instanceRole: instanceRole,
     ////////////////////////////
-    vpcId: vpcId,
-    publicSubnetIds: publicSubnetIds,
-    privateSubnetIds: privateSubnetIds,
+    vpcId: config.vpcId,
+    publicSubnetIds: config.publicSubnetIds,
+    privateSubnetIds: config.privateSubnetIds,
     providerCredentialOpts: { profileName: process.env.AWS_PROFILE}, 
     nodeAssociatePublicIpAddress: false,
     skipDefaultNodeGroup: true,
@@ -224,8 +228,8 @@ export const nodeSecurityGroupId = cluster.nodeSecurityGroup.id; // For RDS
 export const nodeGroupInstanceType = config.pulumiNodeGroupInstanceType;
 
 // Create the ALB security group.
-const albSecurityGroup = createAlbSecurityGroup(name, {
-    vpcId: vpcId,
+const albSecurityGroup = createAlbSecurityGroup(projectName, {
+    vpcId: config.vpcId,
     nodeSecurityGroup: cluster.nodeSecurityGroup,
     tags: tags,
     clusterName: clusterName,
@@ -251,7 +255,8 @@ const amiId = ssmParam.value.apply(s => JSON.parse(s).image_id)
 const ngStandard = new eks.NodeGroup(`${projectName}-ng-standard`, {
     cluster: cluster,
     /// MOD ///
-    instanceProfile: new aws.iam.InstanceProfile("ng-standard", {role: config.nodegroupIamRoleName}),
+    /// CLEAN instanceProfile: new aws.iam.InstanceProfile("ng-standard", {role: config.nodegroupIamRoleName}),
+    instanceProfile: new aws.iam.InstanceProfile("ng-standard", {role: config.eksInstanceRoleName}),
     nodeAssociatePublicIpAddress: false,
     nodeSecurityGroup: cluster.nodeSecurityGroup,
     clusterIngressRule: cluster.eksClusterIngressRule,
@@ -278,7 +283,8 @@ const ngStandard = new eks.NodeGroup(`${projectName}-ng-standard`, {
 const ngStandardPulumi = new eks.NodeGroup(`${projectName}-ng-standard-pulumi`, {
     cluster: cluster,
     /// MOD ///
-    instanceProfile: new aws.iam.InstanceProfile("ng-standard-pulumi", {role: config.pulumiNodegroupIamRoleName}),
+    /// CLEAN instanceProfile: new aws.iam.InstanceProfile("ng-standard-pulumi", {role: config.pulumiNodegroupIamRoleName}),
+    instanceProfile: new aws.iam.InstanceProfile("ng-standard-pulumi", {role: config.eksInstanceRoleName}),
     nodeAssociatePublicIpAddress: false,
     nodeSecurityGroup: cluster.nodeSecurityGroup,
     clusterIngressRule: cluster.eksClusterIngressRule,

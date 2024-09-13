@@ -1,0 +1,6 @@
+encryptionsalt: v1:lxsBjKZh9Dc=:v1:qRE53B7hNA0cb+Cr:I9Rqsw7IRTKB1m8PEnA+eH3ItzlwkQ==
+config:
+  appsNamespaceName       : "apps-eac55699"
+  clusterOidcProviderArn  : "arn:aws:iam::052848974346:oidc-provider/oidc.eks.us-east-2.amazonaws.com/id/E68A4D7B697084C90C1B3985E8F656C4"
+  clusterOidcProviderUrl  : "oidc.eks.us-east-2.amazonaws.com/id/E68A4D7B697084C90C1B3985E8F656C4"
+  clusterSvcsNamespaceName: "cluster-svcs-ff2fdab1"
