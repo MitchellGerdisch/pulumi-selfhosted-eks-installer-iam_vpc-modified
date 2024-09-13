@@ -1,3 +1,0 @@
-name: mitch-01-iam
-description: Platform resources - VPC, EKS, IAM, etc.
-runtime: nodejs
