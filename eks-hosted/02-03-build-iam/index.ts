@@ -1,6 +1,9 @@
 import * as aws from "@pulumi/aws";
 import * as pulumi from "@pulumi/pulumi"
 
+
+const config = new pulumi.Config();
+
 //// 02-cluster-services IAM STUFF ////
 
 // rds IAM stuff
@@ -47,30 +50,47 @@ const externalDnsR53Policy = new aws.iam.Policy("externalDnsR53Policy", {
     },
 });
 
+// The config values to set can be found as outputs of the 01-cluster-configuration stack
+const clusterOidcProviderArn  = config.require("clusterOidcProviderArn") //"arn:aws:iam::052848974346:oidc-provider/oidc.eks.us-east-2.amazonaws.com/id/E68A4D7B697084C90C1B3985E8F656C4"
+const clusterOidcProviderUrl = config.require("clusterOidcProviderUrl")
+const clusterSvcsNamespaceName = config.require("clusterSvcsNamespaceName")
+const externalDnsAssumeRolePolicy = aws.iam.getPolicyDocumentOutput({
+    statements: [{
+        actions: ["sts:AssumeRoleWithWebIdentity"],
+        conditions: [{
+            test: "StringEquals",
+            values: [`system:serviceaccount:${clusterSvcsNamespaceName}:external-dns`],
+            variable: `${clusterOidcProviderUrl.replace("https://", "")}:sub`,
+        }],
+        effect: "Allow",
+        principals: [{
+            identifiers: [clusterOidcProviderArn],
+            type: "Federated",
+        }],
+    }],
+});
 const externalDnsRole = new aws.iam.Role("externalDnsRole", {
-    assumeRolePolicy: {
-        Statement: [
-            {
-                Action: "sts:AssumeRoleWithWebIdentity",
-                Condition: {
-                    StringEquals: {
-                        "oidc.eks.us-east-2.amazonaws.com/id/77E8D74809E3A57615C2B5B19FDB6986:sub":"system:serviceaccount:cluster-svcs-dda258d5:external-dns"
-                    }
-                },
-                Effect: "Allow",
-                Principal: {
-                    Federated: "arn:aws:iam::052848974346:oidc-provider/oidc.eks.us-east-2.amazonaws.com/id/77E8D74809E3A57615C2B5B19FDB6986"
-                }
-            }
-        ],
-        Version: "2012-10-17"
-    },
-    // managedPolicyArns: ["arn:aws:iam::052848974346:policy/external-dns-c849eab"],
+    assumeRolePolicy: externalDnsAssumeRolePolicy.json,
     managedPolicyArns: [ externalDnsR53Policy.arn ],
 });
 export const externalDnsRoleArn = externalDnsRole.arn;
 
 // fluentd-cloudwatch IAM stuff
+const fluentdAssumeRolePolicy = aws.iam.getPolicyDocumentOutput({
+    statements: [{
+        actions: ["sts:AssumeRoleWithWebIdentity"],
+        conditions: [{
+            test: "StringEquals",
+            values: [`system:serviceaccount:${clusterSvcsNamespaceName}:fluentd-cloudwatch`],
+            variable: `${clusterOidcProviderUrl.replace("https://", "")}:sub`,
+        }],
+        effect: "Allow",
+        principals: [{
+            identifiers: [clusterOidcProviderArn],
+            type: "Federated",
+        }],
+    }],
+});
 const fluentdCloudwatchPolicy = new aws.iam.Policy("fluentdCloudwatchPolicy", {
     description: "Allows Fluentd to manage CloudWatch Logs",
     policy: {
@@ -85,28 +105,29 @@ const fluentdCloudwatchPolicy = new aws.iam.Policy("fluentdCloudwatchPolicy", {
     },
 });
 const fluentdRole = new aws.iam.Role("fluentdRole", {
-    assumeRolePolicy: {
-        Statement: [
-            { Action: "sts:AssumeRoleWithWebIdentity",
-                Condition:{
-                    StringEquals: { "oidc.eks.us-east-2.amazonaws.com/id/77E8D74809E3A57615C2B5B19FDB6986:sub":"system:serviceaccount:cluster-svcs-dda258d5:fluentd-cloudwatch"
-
-                    }
-                },
-                Effect: "Allow",
-                Principal: {
-                    Federated: "arn:aws:iam::052848974346:oidc-provider/oidc.eks.us-east-2.amazonaws.com/id/77E8D74809E3A57615C2B5B19FDB6986"
-                }
-            }
-        ],
-        Version: "2012-10-17"
-    },
-    // managedPolicyArns: ["arn:aws:iam::052848974346:policy/fluentd-cloudwatch-e3971b4"],
+    assumeRolePolicy: fluentdAssumeRolePolicy.json,
+    // CLEAN managedPolicyArns: ["arn:aws:iam::052848974346:policy/fluentd-cloudwatch-e3971b4"],
     managedPolicyArns: [ fluentdCloudwatchPolicy.arn ],
 });
 export const fluentdRoleArn = fluentdRole.arn;
 
 /// alb-ing-cntlr IAM stuff
+const kubeSystemNamespaceName = "kube-system";
+const albIngressAssumeRolePolicy = aws.iam.getPolicyDocumentOutput({
+    statements: [{
+        actions: ["sts:AssumeRoleWithWebIdentity"],
+        conditions: [{
+            test: "StringEquals",
+            values: [`system:serviceaccount:${kubeSystemNamespaceName}:alb-ing-cntlr`],
+            variable: `${clusterOidcProviderUrl.replace("https://", "")}:sub`,
+        }],
+        effect: "Allow",
+        principals: [{
+            identifiers: [clusterOidcProviderArn],
+            type: "Federated",
+        }],
+    }],
+});
 const albIngressMgmtPolicy = new aws.iam.Policy("albIngressMgmtPolicy", {
     description: "Allows ALB ingress controller to manage ingress and certs",
     policy: {
@@ -317,43 +338,32 @@ const albIngressMgmtPolicy = new aws.iam.Policy("albIngressMgmtPolicy", {
 });
 
 const albIngressRole = new aws.iam.Role("albIngressRole", {
-    assumeRolePolicy: {
-        Statement: [
-            {
-                Action: "sts:AssumeRoleWithWebIdentity",
-                Condition: {
-                    StringEquals: { "oidc.eks.us-east-2.amazonaws.com/id/77E8D74809E3A57615C2B5B19FDB6986:sub":"system:serviceaccount:kube-system:alb-ing-cntlr"}
-                },
-                Effect: "Allow",
-                Principal: {
-                    Federated: "arn:aws:iam::052848974346:oidc-provider/oidc.eks.us-east-2.amazonaws.com/id/77E8D74809E3A57615C2B5B19FDB6986"
-                }
-            }
-        ],
-        Version: "2012-10-17"
-    },
-    // managedPolicyArns: ["arn:aws:iam::052848974346:policy/alb-ing-cntlr-38f38cf"],
+    assumeRolePolicy: albIngressAssumeRolePolicy.json,
+    // CLEAN managedPolicyArns: ["arn:aws:iam::052848974346:policy/alb-ing-cntlr-38f38cf"],
     managedPolicyArns: [albIngressMgmtPolicy.arn],
 });
 export const albIngressRoleArn = albIngressRole.arn;
 
 /// S3 access role - used in 03-apps stack
+const appsNamespaceName = config.require("appsNamespaceName")
+const s3roleAssumeRolePolicy = aws.iam.getPolicyDocumentOutput({
+    statements: [{
+        actions: ["sts:AssumeRoleWithWebIdentity"],
+        conditions: [{
+            test: "StringEquals",
+            values: [`system:serviceaccount:${appsNamespaceName}:pulumi-api`],
+            variable: `${clusterOidcProviderUrl.replace("https://", "")}:sub`,
+        }],
+        effect: "Allow",
+        principals: [{
+            identifiers: [clusterOidcProviderArn],
+            type: "Federated",
+        }],
+    }],
+});
+
 const s3AccessRole = new aws.iam.Role("s3AccessRole", {
-    assumeRolePolicy: {
-        Statement: [
-            {
-                Action: "sts:AssumeRoleWithWebIdentity",
-                Condition: {
-                    StringEquals: { "oidc.eks.us-east-2.amazonaws.com/id/77E8D74809E3A57615C2B5B19FDB6986:sub":"system:serviceaccount:apps-f440c066:pulumi-api"}
-                },
-                Effect: "Allow",
-                Principal: {
-                    Federated: "arn:aws:iam::052848974346:oidc-provider/oidc.eks.us-east-2.amazonaws.com/id/77E8D74809E3A57615C2B5B19FDB6986"
-                }
-            }
-        ],
-        Version: "2012-10-17"
-    },
+    assumeRolePolicy: s3roleAssumeRolePolicy.json,
     managedPolicyArns: ["arn:aws:iam::aws:policy/AmazonS3FullAccess"],
 });
 export const s3AccessRoleArn = s3AccessRole.arn;

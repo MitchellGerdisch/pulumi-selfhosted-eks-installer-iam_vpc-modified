@@ -5,6 +5,15 @@ But, it pulls the IAM and VPC creation into their own stacks. This is done to al
 
 So, for testing, one can use the `build` projects to create these resources and then copy them into the applicable stack config files for the rest of the infrastructure.
 
+## Bringing Your Own IAM and VPC
+Look at the `index.ts` in the `01-build-iam-vpc` and `02-03-build-iam` projects to see how you need to configure the IAM (and to a lesser extent the VPC)
+
+Especially tricky is the IAM resources in the `02-03-build-iam` since these IAM resources reference properties of the EKS cluster created in `01-cluster-configuration`. 
+Look at the code to see what values are needed and how the roles and policies are configured.
+
+The tricky bits to note are the assume role policies for the external-dns, fluentd, and alb ingress controller roles since these need to use the
+EKS cluster's OIDC ARN and URL and applicable namespaces and each has a specific name (e.g. `external-dns`, `alb-ing-cntlr`, `fluentd-cloudwatch`).
+
 ## How to Use
 
 * `pulumi login s3://YOURSTATEBUCKET`
@@ -18,4 +27,8 @@ So, for testing, one can use the `build` projects to create these resources and 
 * If using the `02-03-build-iam` project to create the IAM for the rest of the projects:
   * `cd 02-03-build-iam`
   * create a stack and `pulumi up`. Any config errors, just follow the instructions.
+    * The needed values are from the outputs of the `01-cluster-configuration` stack
+* `cd 02-cluster-services`
+  * Look at the `Pulumi.test.yaml` config file to see what to set up.
+
 
