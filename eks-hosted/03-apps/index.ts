@@ -278,7 +278,8 @@ const apiDeployment = new kx.Deployment(apiName, {
     spec: apiPodBuilder.asDeploymentSpec({ replicas: apiReplicas }),
 }, { provider });
 const apiService = apiDeployment.createService();
-export const serviceEndpoint = pulumi.interpolate`https://${apiSubdomainName}.${config.hostedZoneDomainSubdomain}.${config.hostedZoneDomainName}`;
+const serviceEndpoint = pulumi.interpolate`${apiSubdomainName}.${config.hostedZoneDomainSubdomain}.${config.hostedZoneDomainName}`;
+export const serviceUrl = pulumi.interpolate`https://${serviceEndpoint}`;
 
 // Deploy the Console.
 const consolePodBuilder = new kx.PodBuilder({
@@ -346,7 +347,8 @@ const consoleDeployment = new kx.Deployment(consoleName, {
     spec: consolePodBuilder.asDeploymentSpec({ replicas: consoleReplicas })
 }, { provider });
 const consoleService = consoleDeployment.createService();
-export const consoleEndpoint = pulumi.interpolate`https://${consoleSubdomainName}.${config.hostedZoneDomainSubdomain}.${config.hostedZoneDomainName}`;
+const consoleEndpoint = pulumi.interpolate`${consoleSubdomainName}.${config.hostedZoneDomainSubdomain}.${config.hostedZoneDomainName}`;
+export const consoleURL = pulumi.interpolate`https://${consoleEndpoint}`;
 
 // Create a PodDisruptionBudget on Pods to ensure availability during evictions
 // by selecting a set of labels.
@@ -482,3 +484,27 @@ const consoleIngress = new k8s.networking.v1.Ingress(consoleName,
     },
     { provider }
 );
+
+export const serviceLoadbalancerDnsName = apiIngress.status.loadBalancer.ingress[0].hostname;
+export const consoleLoadbalancerDnsName = consoleIngress.status.loadBalancer.ingress[0].hostname;   
+
+
+
+// Create a Route53 record for the API and Console.
+const zoneId = aws.route53.getZoneOutput({ name: config.hostedZoneDomainName}).zoneId
+
+const consoleDnsRecord = new aws.route53.Record("consoleEndDnsRecord", {
+  zoneId: zoneId,
+  name: consoleEndpoint,
+  type: "CNAME",
+  ttl: 300,
+  records: [ consoleLoadbalancerDnsName]
+})
+
+const serviceDnsRecord = new aws.route53.Record("serviceEndDnsRecord", {
+  zoneId: zoneId,
+  name: serviceEndpoint,
+  type: "CNAME",
+  ttl: 300,
+  records: [ serviceLoadbalancerDnsName]
+})
