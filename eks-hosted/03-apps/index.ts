@@ -6,7 +6,7 @@ import { types } from "@pulumi/kubernetesx";
 import * as pulumi from "@pulumi/pulumi";
 import EnvMap = types.EnvMap;
 import { config } from "./config";
-import * as rbac from "./rbac";
+// import * as rbac from "./rbac";
 import { configurePulumiSecretProvider } from "./secrets-management"
 
 const migrationsImage = `pulumi/migrations:${config.imageTag}`;
@@ -160,15 +160,8 @@ const serviceEnv = pulumi
         return envVars;
     });
 
-// Create IAM and ServiceAccount for S3 access.
-/// MOD - s3Role is created outside the stack
-// const s3Role = rbac.createIAM(apiName, config.appsNamespaceName,
-//     config.clusterOidcProviderArn, config.clusterOidcProviderUrl);
 
-// K8s resources
-    provider, config.s3AccessRoleArn, config.appsNamespaceName);
-const serviceAccountName = serviceAccount.metadata.name;
-
+// Set up access for S3 buckets by the Pulimi service.
 const apiServiceAccount = new k8s.core.v1.ServiceAccount(apiName, {
     metadata: {
         namespace: config.appsNamespaceName,
@@ -181,9 +174,9 @@ const apiServiceAccount = new k8s.core.v1.ServiceAccount(apiName, {
 
 const saPodIdentityAssociation = new aws.eks.PodIdentityAssociation(apiName, {
     clusterName: config.clusterName,
-    serviceAccount: albServiceAccount.metadata.name,
+    serviceAccount: apiServiceAccount.metadata.name,
     roleArn: config.podIdentityRoleArn,
-    namespace: "kube-system"
+    namespace: config.appsNamespaceName,
 })
 
 // Minimum System Requirements (per replica):
@@ -244,7 +237,7 @@ export const apiPodBuilder = new kx.PodBuilder({
             effect: "NoSchedule",
         },
     ],
-    // serviceAccountName: serviceAccountName,
+    serviceAccountName: apiServiceAccount.metadata.name,
     // TODO: simplify this logic once initContainer support is added to kx (https://github.com/pulumi/pulumi-kubernetesx/issues/53)
     initContainers: [{
         name: "migration",
