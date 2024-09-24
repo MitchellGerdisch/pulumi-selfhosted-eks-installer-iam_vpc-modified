@@ -14,6 +14,7 @@ config:
     - subnet-0f544b2696722dca4
     - subnet-07149ad285f0b2d5c
     - subnet-087c866fc43f1bf07
+  # This is an role that the user would assume when interacting with the cluster or aws. E.g. the role that one would use to run "aws s3 ls" cli
   pulumi-selfhosted-01-cluster-configuration:ssoRoleArn:
     secure: AAABAJVIVhQH68HnI9M8CaIpXut4qUMA3DPH6SNcrV/mgjgCQNQgE5KpAkINzwXoUHpjU12Xtp3x2Ng7tlf49YKvUPl2gey4GUrdFx7GE1FZWYjNk8pnjsXbAlgzj6kkU9fSaEbAOr5AdeEjH+EsBj/NdL05GvBYSu3M/DArDOYQE0Kb5qP/LKyiPcsmmgzi6HopAUBb2bqRHfw=
   pulumi-selfhosted-01-cluster-configuration:vpcId: vpc-057a6a133f8c337eb

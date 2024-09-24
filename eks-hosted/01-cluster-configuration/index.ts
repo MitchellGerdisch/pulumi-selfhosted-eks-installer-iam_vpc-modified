@@ -8,6 +8,7 @@ import { config } from "./config";
 const projectName = config.projectName 
 const tags = { "Project": "pulumi-k8s-aws-cluster", "Owner": "pulumi"};
 
+/////////////////////
 // --- EKS Cluster ---
 const serviceRole = aws.iam.Role.get("eksServiceRole", config.eksServiceRoleName)
 const instanceRole = aws.iam.Role.get("instanceRole", config.eksInstanceRoleName)
@@ -52,6 +53,8 @@ export const region = aws.config.region;
 export const nodeSecurityGroupId = cluster.nodeSecurityGroup.id; // For RDS
 export const nodeGroupInstanceType = config.pulumiNodeGroupInstanceType;
 
+/////////////////////
+/// Build node groups
 const ssmParam = pulumi.output(aws.ssm.getParameter({
     // https://docs.aws.amazon.com/eks/latest/userguide/retrieve-ami-id.html
     name: `/aws/service/eks/optimized-ami/${config.clusterVersion}/amazon-linux-2/recommended`,
@@ -107,18 +110,14 @@ const ngStandardPulumi = new eks.NodeGroup(`${projectName}-ng-standard-pulumi`, 
     providers: { kubernetes: cluster.provider},
 });
 
+////////////
+// Enable necessary EKS addons
+// Note that "vpc-cni" is automatically installed by EKS and is not required to be installed.
 const eksPodIdentityAddon = new aws.eks.Addon("eksPodIdentityAddon", {
     addonName: "eks-pod-identity-agent",
     clusterName: clusterName,
     addonVersion: "v1.3.2-eksbuild.2",
 }, {dependsOn: [ngStandard, ngStandardPulumi]});
-
-// Automatically installed so skipping
-// const vpcCniAddon = new aws.eks.Addon("vpcCniAddon", {
-//     addonName: "vpc-cni",
-//     clusterName: clusterName,
-//     addonVersion: "v1.18.2-eksbuild.1",
-// }, {dependsOn: [ngStandard, ngStandardPulumi]});
 
 const coreDnsAddon = new aws.eks.Addon("coreDns", {
     addonName: "coredns",
@@ -126,6 +125,7 @@ const coreDnsAddon = new aws.eks.Addon("coreDns", {
     addonVersion: "v1.11.1-eksbuild.8",
 }, {dependsOn: [ngStandard, ngStandardPulumi]});
 
+////////////
 // Create the ALB security group.
 const albSecurityGroup = createAlbSecurityGroup(projectName, {
     vpcId: config.vpcId,
@@ -135,7 +135,8 @@ const albSecurityGroup = createAlbSecurityGroup(projectName, {
 }, cluster);
 export const albSecurityGroupId = albSecurityGroup.id;
 
-// Create Kubernetes namespaces.
+////////////
+// Create Kubernetes namespaces needed later.
 const clusterSvcsNamespace = new k8s.core.v1.Namespace("cluster-svcs", undefined, { provider: cluster.provider, protect: true });
 export const clusterSvcsNamespaceName = clusterSvcsNamespace.metadata.name;
 
@@ -168,7 +169,8 @@ const quotaAppsNamespace = new k8s.core.v1.ResourceQuota("apps", {
     provider: cluster.provider
 });
 
-// Helper function for creating the ALB security group.
+////////////
+// Helper function for creating the ALB security group used above.
 export interface AlbSecGroupOptions {
     // The VPC in which to create the security group.
     vpcId: pulumi.Input<string>;

@@ -12,3 +12,4 @@ config:
   databaseMonitoringRoleArn: arn:aws:iam::052848974346:role/databaseMonitoringRole-cf06964
   podIdentityRoleArn       : arn:aws:iam::052848974346:role/podIdentityRole-84deb51
   hostedZoneDomainName: pulumi-ce.team
+

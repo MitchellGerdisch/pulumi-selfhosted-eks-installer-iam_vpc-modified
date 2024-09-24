@@ -48,6 +48,7 @@ export const eksInstanceRoleName = instanceRole.name;
 const instanceProfile =  new aws.iam.InstanceProfile("ng-standard", {role: eksInstanceRoleName})
 export const instanceProfileName = instanceProfile.name;
 
+// Used for pod identity roles - instead of using IRSA OIDC stuff.
 const podIdentityRole = new aws.iam.Role("podIdentityRole", {
     assumeRolePolicy: JSON.stringify({
         Version: "2012-10-17",
@@ -63,6 +64,8 @@ const podIdentityRole = new aws.iam.Role("podIdentityRole", {
         }]
     })
 });
+
+// Allows pods to manage ALBs
 const albControllerPolicy = new aws.iam.Policy("albControllerPolicy", {
     policy: albControllerPolicyStatement
 });

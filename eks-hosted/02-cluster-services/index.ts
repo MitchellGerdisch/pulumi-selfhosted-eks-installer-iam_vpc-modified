@@ -9,6 +9,7 @@ import { AlbIngressController } from "./alb-ing-cntlr";
 
 const projectName = pulumi.getProject();
 
+////////////
 // Deploy RDS Aurora DB
 const rds = new RdsDatabase("rds-aurora-db", {
     privateSubnetIds: config.privateSubnetIds,
@@ -33,8 +34,10 @@ export const dbConn: DbConn = {
     password: rds.password, // db.masterPassword can possibly be undefined. Use rds.password instead.
 };
 
+// instantiate k8s provider for subsequent resources
 const k8sprovider = new k8s.Provider("provider", {kubeconfig: config.kubeconfig, deleteUnreachable: true});
 
+//////////
 // ALB Ingress Controller
 // The ALB Ingress Controller automatically creates and plumbs ALBs when a K8s ingress is created (see 03-apps for ingresses being created).
 const albServiceAccount = new k8s.core.v1.ServiceAccount("albServiceAccount", {
@@ -67,45 +70,3 @@ const albHelm = new k8s.helm.v3.Release("albhelm", {
     }
 }, {provider: k8sprovider, dependsOn: [albPodIdentityAssociation]});
 
-// // Deploy fluentd-cloudwatch.
-// const fluentd = new FluentdCloudWatch("fluentd-cloudwatch", {
-//     provider: provider,
-//     namespace: config.clusterSvcsNamespaceName,
-//     clusterOidcProviderArn: config.clusterOidcProviderArn,
-//     clusterOidcProviderUrl: config.clusterOidcProviderUrl,
-//     fluentdRoleArn: config.fluentdRoleArn,
-// });
-// export const fluentdCloudWatchLogGroupName = fluentd.logGroupName;
-
-// Deploy external-dns.
-//// SKIPPING FOR NOW TO SEE IF ONE CAN MANUALLY SET IT UP AFTERWARDS
-// const extDns = new ExternalDns("external-dns", {
-//     provider: k8sprovider,
-//     namespace: config.clusterSvcsNamespaceName,
-//     clusterName: config.clusterName,
-//     commandArgs: [
-//         "--source=service",
-//         "--source=ingress",
-//         "--domain-filter=" + config.hostedZoneDomainName, // will make ExternalDNS see only the hosted zones matching provided domain, omit to process all available hosted zones
-//         "--provider=aws",
-//         "--policy=sync",
-//         "--registry=txt",
-//         config.clusterName.apply(name => `--txt-owner-id=${name}`)
-//     ],
-//     // clusterOidcProviderArn: config.clusterOidcProviderArn,
-//     // clusterOidcProviderUrl: config.clusterOidcProviderUrl,
-//     // serviceAccountRoleArn: config.externalDnsRoleArn,
-//     serviceAccountRoleArn: config.podIdentityRoleArn
-// });
-
-
-// Deploy ALB Ingress Controller.
-// const albIngCntlr = new AlbIngressController("alb-ing-cntlr", {
-//     namespace: "kube-system",
-//     provider: provider,
-//     vpcId: config.vpcId, 
-//     clusterName: config.clusterName,
-//     clusterOidcProviderArn: config.clusterOidcProviderArn,
-//     clusterOidcProviderUrl: config.clusterOidcProviderUrl,
-//     albIngressRoleArn: config.albIngressRoleArn,
-// });

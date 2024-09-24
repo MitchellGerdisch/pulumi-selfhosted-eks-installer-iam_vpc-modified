@@ -25,6 +25,8 @@ const consoleReplicas = config.consoleReplicas;
 // Create a k8s provider to the cluster.
 const provider = new k8s.Provider("provider", { kubeconfig: config.kubeconfig, deleteUnreachable: true });
 
+///////////////
+// K8s secrets used by the applications
 // Configure secrets provider, the component the Pulumi Service uses to encrypt stack secrets.
 const secretsIntegration = configurePulumiSecretProvider(config, provider)
 
@@ -123,12 +125,32 @@ const consoleEmailLoginConfig = {
     "PULUMI_HIDE_EMAIL_SIGNUP": (config.consoleHideEmailSignup === "true" ? "true" : null),
 }
 
+///////////////
 // Create S3 Buckets for the service checkpoints and policy packs.
 const checkpointsBucket = new aws.s3.Bucket(`pulumi-checkpoints`, {}, { protect: true});
 const policyPacksBucket = new aws.s3.Bucket(`pulumi-policypacks`, {}, { protect: true});
 export const checkpointsS3BucketName = checkpointsBucket.id;
 export const policyPacksS3BucketName = policyPacksBucket.id;
 
+// Set up access for S3 buckets by the Pulimi service.
+const apiServiceAccount = new k8s.core.v1.ServiceAccount(apiName, {
+    metadata: {
+        namespace: config.appsNamespaceName,
+        name: apiName,
+        // annotations: {
+        //     "eks.amazonaws.com/role-arn": roleArn,
+        // },
+    },
+}, { provider });
+
+const saPodIdentityAssociation = new aws.eks.PodIdentityAssociation(apiName, {
+    clusterName: config.clusterName,
+    serviceAccount: apiServiceAccount.metadata.name,
+    roleArn: config.podIdentityRoleArn,
+    namespace: config.appsNamespaceName,
+})
+
+//////////////
 // Environment variables for the API service.
 const awsRegion = pulumi.output(aws.getRegion())
 const serviceEnv = pulumi
@@ -152,33 +174,14 @@ const serviceEnv = pulumi
             ...apiEmailLoginConfig,
         } as EnvMap;
 
-
-
         // Add env vars specific to managing secrets.
         envVars[secretsIntegration.envVarName] = secretsIntegration.envVarValue;
 
         return envVars;
     });
 
-
-// Set up access for S3 buckets by the Pulimi service.
-const apiServiceAccount = new k8s.core.v1.ServiceAccount(apiName, {
-    metadata: {
-        namespace: config.appsNamespaceName,
-        name: apiName,
-        // annotations: {
-        //     "eks.amazonaws.com/role-arn": roleArn,
-        // },
-    },
-}, { provider });
-
-const saPodIdentityAssociation = new aws.eks.PodIdentityAssociation(apiName, {
-    clusterName: config.clusterName,
-    serviceAccount: apiServiceAccount.metadata.name,
-    roleArn: config.podIdentityRoleArn,
-    namespace: config.appsNamespaceName,
-})
-
+////////////
+// Deploy services
 // Minimum System Requirements (per replica):
 // API:     2048m cpu, 1024Mi ram
 // Console: 1024m cpu, 512Mi ram
@@ -238,7 +241,6 @@ export const apiPodBuilder = new kx.PodBuilder({
         },
     ],
     serviceAccountName: apiServiceAccount.metadata.name,
-    // TODO: simplify this logic once initContainer support is added to kx (https://github.com/pulumi/pulumi-kubernetesx/issues/53)
     initContainers: [{
         name: "migration",
         image: migrationsImage,
@@ -281,6 +283,7 @@ const apiService = apiDeployment.createService();
 const serviceEndpoint = pulumi.interpolate`${apiSubdomainName}.${config.hostedZoneDomainSubdomain}.${config.hostedZoneDomainName}`;
 export const serviceUrl = pulumi.interpolate`https://${serviceEndpoint}`;
 
+/////
 // Deploy the Console.
 const consolePodBuilder = new kx.PodBuilder({
     affinity: {
@@ -373,6 +376,7 @@ function createPodDisruptionBudget(
 createPodDisruptionBudget(apiName, "66%", apiDeployment.metadata.labels, config.appsNamespaceName, provider);
 createPodDisruptionBudget(consoleName, "66%", consoleDeployment.metadata.labels, config.appsNamespaceName, provider);
 
+////////////
 // Create the wildcard TLS cert in ACM to use with the ALB on both the API and
 // the console.
 const certCertificate = new aws.acm.Certificate("cert", {
@@ -396,6 +400,7 @@ const certCertificateValidation = new aws.acm.CertificateValidation("cert", {
     validationRecordFqdns: [certValidation.fqdn],
 });
 
+//////////////
 // Create the API and Console Ingress.
 // Used with ALB, and external-dns.
 const apiIngress = new k8s.networking.v1.Ingress(apiName,
@@ -488,8 +493,7 @@ const consoleIngress = new k8s.networking.v1.Ingress(consoleName,
 export const serviceLoadbalancerDnsName = apiIngress.status.loadBalancer.ingress[0].hostname;
 export const consoleLoadbalancerDnsName = consoleIngress.status.loadBalancer.ingress[0].hostname;   
 
-
-
+////////////
 // Create a Route53 record for the API and Console.
 const zoneId = aws.route53.getZoneOutput({ name: config.hostedZoneDomainName}).zoneId
 
