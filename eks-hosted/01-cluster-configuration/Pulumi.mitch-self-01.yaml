@@ -1,5 +1,0 @@
-encryptionsalt: v1:qZTZrNthuNs=:v1:VBEtlUZhNK6Xl0yV:oliNqkmoVga0/T4oYlZJ6F8687hm/A==
-config:
-  aws:region: us-east-2
-  pulumi-selfhosted-01-cluster-configuration:clusterVersion: "1.24"
-  pulumi-selfhosted-01-cluster-configuration:stackName: undefined

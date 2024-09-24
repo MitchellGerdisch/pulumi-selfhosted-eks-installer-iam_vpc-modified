@@ -33,43 +33,79 @@ export const dbConn: DbConn = {
     password: rds.password, // db.masterPassword can possibly be undefined. Use rds.password instead.
 };
 
-const provider = new k8s.Provider("provider", {kubeconfig: config.kubeconfig, deleteUnreachable: true});
+const k8sprovider = new k8s.Provider("provider", {kubeconfig: config.kubeconfig, deleteUnreachable: true});
 
-// Deploy fluentd-cloudwatch.
-const fluentd = new FluentdCloudWatch("fluentd-cloudwatch", {
-    provider: provider,
-    namespace: config.clusterSvcsNamespaceName,
-    clusterOidcProviderArn: config.clusterOidcProviderArn,
-    clusterOidcProviderUrl: config.clusterOidcProviderUrl,
-    fluentdRoleArn: config.fluentdRoleArn,
-});
-export const fluentdCloudWatchLogGroupName = fluentd.logGroupName;
+// ALB Ingress Controller
+// The ALB Ingress Controller automatically creates and plumbs ALBs when a K8s ingress is created (see 03-apps for ingresses being created).
+const albServiceAccount = new k8s.core.v1.ServiceAccount("albServiceAccount", {
+    metadata: {
+        name: "aws-load-balancer-controller",
+        namespace: "kube-system"
+    }
+}, {provider: k8sprovider})
+
+const albPodIdentityAssociation = new aws.eks.PodIdentityAssociation("albPodIdentityAssociation", {
+    clusterName: config.clusterName,
+    serviceAccount: albServiceAccount.metadata.name,
+    roleArn: config.podIdentityRoleArn,
+    namespace: "kube-system"
+})
+
+const albHelm = new k8s.helm.v3.Release("albhelm", {
+    repositoryOpts: {
+        repo: "https://aws.github.io/eks-charts"
+    },
+    chart: "aws-load-balancer-controller",
+    namespace: "kube-system",
+    values: {
+        clusterName: config.clusterName,
+        serviceAccount: {
+            create: false,
+            name: "aws-load-balancer-controller"
+        },
+        vpcId: config.vpcId,
+    }
+}, {provider: k8sprovider, dependsOn: [albPodIdentityAssociation]});
+
+// // Deploy fluentd-cloudwatch.
+// const fluentd = new FluentdCloudWatch("fluentd-cloudwatch", {
+//     provider: provider,
+//     namespace: config.clusterSvcsNamespaceName,
+//     clusterOidcProviderArn: config.clusterOidcProviderArn,
+//     clusterOidcProviderUrl: config.clusterOidcProviderUrl,
+//     fluentdRoleArn: config.fluentdRoleArn,
+// });
+// export const fluentdCloudWatchLogGroupName = fluentd.logGroupName;
 
 // Deploy external-dns.
-const extDns = new ExternalDns("external-dns", {
-    provider: provider,
-    namespace: config.clusterSvcsNamespaceName,
-    commandArgs: [
-        "--source=service",
-        "--source=ingress",
-        "--domain-filter=" + config.hostedZoneDomainName, // will make ExternalDNS see only the hosted zones matching provided domain, omit to process all available hosted zones
-        "--provider=aws",
-        "--policy=sync",
-        "--registry=txt",
-        config.clusterName.apply(name => `--txt-owner-id=${name}`)
-    ],
-    clusterOidcProviderArn: config.clusterOidcProviderArn,
-    clusterOidcProviderUrl: config.clusterOidcProviderUrl,
-    serviceAccountRoleArn: config.externalDnsRoleArn,
-});
+//// SKIPPING FOR NOW TO SEE IF ONE CAN MANUALLY SET IT UP AFTERWARDS
+// const extDns = new ExternalDns("external-dns", {
+//     provider: k8sprovider,
+//     namespace: config.clusterSvcsNamespaceName,
+//     clusterName: config.clusterName,
+//     commandArgs: [
+//         "--source=service",
+//         "--source=ingress",
+//         "--domain-filter=" + config.hostedZoneDomainName, // will make ExternalDNS see only the hosted zones matching provided domain, omit to process all available hosted zones
+//         "--provider=aws",
+//         "--policy=sync",
+//         "--registry=txt",
+//         config.clusterName.apply(name => `--txt-owner-id=${name}`)
+//     ],
+//     // clusterOidcProviderArn: config.clusterOidcProviderArn,
+//     // clusterOidcProviderUrl: config.clusterOidcProviderUrl,
+//     // serviceAccountRoleArn: config.externalDnsRoleArn,
+//     serviceAccountRoleArn: config.podIdentityRoleArn
+// });
+
 
 // Deploy ALB Ingress Controller.
-const albIngCntlr = new AlbIngressController("alb-ing-cntlr", {
-    namespace: "kube-system",
-    provider: provider,
-    vpcId: config.vpcId, 
-    clusterName: config.clusterName,
-    clusterOidcProviderArn: config.clusterOidcProviderArn,
-    clusterOidcProviderUrl: config.clusterOidcProviderUrl,
-    albIngressRoleArn: config.albIngressRoleArn,
-});
+// const albIngCntlr = new AlbIngressController("alb-ing-cntlr", {
+//     namespace: "kube-system",
+//     provider: provider,
+//     vpcId: config.vpcId, 
+//     clusterName: config.clusterName,
+//     clusterOidcProviderArn: config.clusterOidcProviderArn,
+//     clusterOidcProviderUrl: config.clusterOidcProviderUrl,
+//     albIngressRoleArn: config.albIngressRoleArn,
+// });

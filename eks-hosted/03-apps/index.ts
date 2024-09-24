@@ -166,9 +166,25 @@ const serviceEnv = pulumi
 //     config.clusterOidcProviderArn, config.clusterOidcProviderUrl);
 
 // K8s resources
-const serviceAccount = rbac.createServiceAccount(apiName,
     provider, config.s3AccessRoleArn, config.appsNamespaceName);
 const serviceAccountName = serviceAccount.metadata.name;
+
+const apiServiceAccount = new k8s.core.v1.ServiceAccount(apiName, {
+    metadata: {
+        namespace: config.appsNamespaceName,
+        name: apiName,
+        // annotations: {
+        //     "eks.amazonaws.com/role-arn": roleArn,
+        // },
+    },
+}, { provider });
+
+const saPodIdentityAssociation = new aws.eks.PodIdentityAssociation(apiName, {
+    clusterName: config.clusterName,
+    serviceAccount: albServiceAccount.metadata.name,
+    roleArn: config.podIdentityRoleArn,
+    namespace: "kube-system"
+})
 
 // Minimum System Requirements (per replica):
 // API:     2048m cpu, 1024Mi ram
@@ -228,7 +244,7 @@ export const apiPodBuilder = new kx.PodBuilder({
             effect: "NoSchedule",
         },
     ],
-    serviceAccountName: serviceAccountName,
+    // serviceAccountName: serviceAccountName,
     // TODO: simplify this logic once initContainer support is added to kx (https://github.com/pulumi/pulumi-kubernetesx/issues/53)
     initContainers: [{
         name: "migration",
@@ -347,8 +363,8 @@ function createPodDisruptionBudget(
     labels: pulumi.Input<any>,
     namespace: pulumi.Input<string>,
     provider: k8s.Provider,
-): k8s.policy.v1beta1.PodDisruptionBudget {
-    return new k8s.policy.v1beta1.PodDisruptionBudget(
+): k8s.policy.v1.PodDisruptionBudget {
+    return new k8s.policy.v1.PodDisruptionBudget(
         name,
         {
             metadata: { labels: labels, namespace: namespace, },

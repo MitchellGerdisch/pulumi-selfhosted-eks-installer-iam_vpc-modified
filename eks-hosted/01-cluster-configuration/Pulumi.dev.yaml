@@ -1,0 +1,19 @@
+config:
+  aws:region: us-east-2
+  pulumi-selfhosted-01-cluster-configuration:clusterName: mitchselfhost-eks
+  pulumi-selfhosted-01-cluster-configuration:eksInstanceRoleName: mitchselfhost-instanceRole-7a5966b
+  pulumi-selfhosted-01-cluster-configuration:eksServiceRoleName: mitchselfhost-eksRole-5fac034
+  pulumi-selfhosted-01-cluster-configuration:instanceProfileName: ng-standard-678514d
+  pulumi-selfhosted-01-cluster-configuration:podIdentityRoleArn: arn:aws:iam::052848974346:role/podIdentityRole-84deb51
+  pulumi-selfhosted-01-cluster-configuration:privateSubnetIds:
+    - subnet-0a75344190683b6c0
+    - subnet-0a03ecf1821c1a46c
+    - subnet-07db70c257ed9b4ef
+  pulumi-selfhosted-01-cluster-configuration:projectName: mitchselfhost
+  pulumi-selfhosted-01-cluster-configuration:publicSubnetIds:
+    - subnet-0f544b2696722dca4
+    - subnet-07149ad285f0b2d5c
+    - subnet-087c866fc43f1bf07
+  pulumi-selfhosted-01-cluster-configuration:ssoRoleArn:
+    secure: AAABAJVIVhQH68HnI9M8CaIpXut4qUMA3DPH6SNcrV/mgjgCQNQgE5KpAkINzwXoUHpjU12Xtp3x2Ng7tlf49YKvUPl2gey4GUrdFx7GE1FZWYjNk8pnjsXbAlgzj6kkU9fSaEbAOr5AdeEjH+EsBj/NdL05GvBYSu3M/DArDOYQE0Kb5qP/LKyiPcsmmgzi6HopAUBb2bqRHfw=
+  pulumi-selfhosted-01-cluster-configuration:vpcId: vpc-057a6a133f8c337eb

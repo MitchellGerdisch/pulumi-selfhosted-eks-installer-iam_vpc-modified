@@ -3,7 +3,10 @@ import * as pulumi from "@pulumi/pulumi";
 const pulumiConfig = new pulumi.Config();
 
 export const config = {
-    clusterVersion: pulumiConfig.get("clusterVersion") || "1.21", 
+    clusterVersion: pulumiConfig.get("clusterVersion") || "1.30", 
+    baseName: pulumiConfig.require("baseName"),
+    // clusterName: `${pulumiConfig.require("baseName")}-eks`,
+    clusterName: "mitchselfhost-eksCluster-3818ca5",
 
     /**
      * EKS Node Group

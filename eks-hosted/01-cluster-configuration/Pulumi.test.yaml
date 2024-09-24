@@ -1,15 +1,22 @@
-encryptionsalt: v1:mRbAYpihvqE=:v1:pC6yUPEmplCC1mLM:wnDo3vf3Zh9mCePCuhS6gOnnU0Pftw==
 config:
   aws:region: us-east-2
   projectName: mitch-selfhost
-  eksInstanceRoleName:  mitch-selfhost-instanceRole-ef695d3
-  eksServiceRoleName:   mitch-selfhost-eksRole-b70d08d
   privateSubnetIds:     
-    - "subnet-0c7ddba7a027622ef"
-    - "subnet-0add0e78aee7e713c"
-    - "subnet-0790a918ec0993661"
+    - "subnet-0595cd24963e4d3b8"
+    - "subnet-0027489ad58cd1bc3"
+    - "subnet-0d48998b3e24285b2"
   publicSubnetIds:      
-    - "subnet-0f3c52e8ebdc44dd1"
-    - "subnet-0500043f8e50b5f64"
-    - "subnet-0f941f202e43fd6d3"
-  vpcId:                vpc-0320cf021f07abefc
+    - "subnet-00e3d6c7965f8026b"
+    - "subnet-03a0d0a5d0685d7d8"
+    - "subnet-09e90851fb67a5790"
+  eksInstanceRoleName: "mitchselfhost-instanceRole-41f9a1f"
+  eksServiceRoleName : "mitchselfhost-eksRole-1c03ee8"
+  vpcId              : "vpc-03743e33142a053be"
+  podIdentityRoleArn : "arn:aws:iam::052848974346:role/podIdentityRole-851bb80"
+  instanceProfileName: "ng-standard-8d99d08"
+  # A role humans can assume to access the cluster
+  ssoRoleArn:
+    secure: AAABAOkwImNxER82sqVLEdL/1nE0alQxSfnRHYLJmHWC+ufK1uVIxbDuzRQwALqtj6l84t4yYq5gYMpGLv9i3hWWdD5nx3WsUYBbn0GhwOs1fjj+PlUMON4ZZIWesD28dlgdSPALoiu7lqWPkBFxl22AUZE547pg+BYBt3ex5X+WUOAXfKzkaWbMP6mdlRf77V9p0u1C8mteKKM=
+  # clusterName must match the value when tagging the subnets for alb-ingress-controller
+  # I.e. the tag of the form: `kubernetes.io/cluster/${clusterName}`
+  clusterName: mitch-selfhost-eks

@@ -3,7 +3,9 @@ import * as pulumi from "@pulumi/pulumi";
 const pulumiConfig = new pulumi.Config();
 
 export const config = {
-    clusterVersion: pulumiConfig.get("clusterVersion") || "1.24", 
+    clusterVersion: pulumiConfig.get("clusterVersion") || "1.30", 
+
+    clusterName: pulumiConfig.require("clusterName"),
 
     /**
      * EKS Node Group
@@ -20,13 +22,13 @@ export const config = {
 
     // currently copy/pasted from 01-iam stack outputs
     eksInstanceRoleName        : pulumiConfig.require("eksInstanceRoleName"),
-    // CLEAN eksInstanceRoleName       : "mitch-self-01-instanceRole-role-a045dc4",
+    instanceProfileName        : pulumiConfig.require("instanceProfileName"),
     eksServiceRoleName         : pulumiConfig.require("eksServiceRoleName"),
-    // CLEAN eksServiceRoleName        : "mitch-self-01-eksRole-role-27df638",
-    // CLEAN nodegroupIamRoleArn       : "arn:aws:iam::052848974346:role/standardNodeGroup-eksClusterWorkerNode-63141c7",
-    // CLEAN nodegroupIamRoleName      : "standardNodeGroup-eksClusterWorkerNode-63141c7",
-    // CLEAN pulumiNodegroupIamRoleArn : "arn:aws:iam::052848974346:role/pulumiStandardNodeGroup-eksClusterWorkerNode-e7828e8",
-    // CLEAN pulumiNodegroupIamRoleName: "pulumiStandardNodeGroup-eksClusterWorkerNode-e7828e8",
+    podIdentityRoleArn         : pulumiConfig.require("podIdentityRoleArn"),
+
+    // Needed to allow the K8s provider and humans to access the cluster.
+    // This should be the arn of the role that can be used to interact with AWS.
+    ssoRoleArn: pulumiConfig.requireSecret("ssoRoleArn"),
 
     vpcId: pulumiConfig.require("vpcId"),
     publicSubnetIds: pulumiConfig.requireObject<string[]>("publicSubnetIds"),
