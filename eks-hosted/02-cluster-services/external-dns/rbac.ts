@@ -82,9 +82,10 @@ export function createServiceAccount(
         metadata: {
             namespace: namespace,
             name: name,
-            annotations: {
-                "eks.amazonaws.com/role-arn": roleArn,
-            },
+            // REMOVING since I don't think it's needed anymore in the pod identity world
+            // annotations: {
+            //     "eks.amazonaws.com/role-arn": roleArn,
+            // },
         },
     }, { provider },
     );

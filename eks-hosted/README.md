@@ -5,6 +5,12 @@ But, it pulls the IAM and VPC creation into their own stacks. This is done to al
 
 So, for testing, one can use the `build` projects to create these resources and then copy them into the applicable stack config files for the rest of the infrastructure.
 
+## Using EKS Pod Identity instead of OIDC
+Another fundamental change is moving away from the built-in OIDC provider that EKS supports to Pod Identity credentials as described here:
+https://aws.amazon.com/blogs/containers/amazon-eks-pod-identity-a-new-way-for-applications-on-eks-to-obtain-iam-credentials/ 
+
+This is to address cases where the self-hosted admin does not have direct IAM permissions.
+
 ## Bringing Your Own IAM and VPC
 Look at the `index.ts` in the `01-build-iam-vpc` and `02-03-build-iam` projects to see how you need to configure the IAM (and to a lesser extent the VPC)
 

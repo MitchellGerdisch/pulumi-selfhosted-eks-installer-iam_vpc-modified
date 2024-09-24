@@ -8,9 +8,10 @@ export type ExternalDnsOptions = {
     namespace: pulumi.Input<string>;
     provider: k8s.Provider;
     commandArgs: pulumi.Input<any>;
-    clusterOidcProviderArn: pulumi.Input<string>;
-    clusterOidcProviderUrl: pulumi.Input<string>;
+    // clusterOidcProviderArn: pulumi.Input<string>;
+    // clusterOidcProviderUrl: pulumi.Input<string>;
     serviceAccountRoleArn: pulumi.Input<string>;
+    clusterName: pulumi.Input<string>;
 };
 
 const pulumiComponentNamespace: string = "pulumi:ExternalDns";
@@ -23,6 +24,7 @@ export class ExternalDns extends pulumi.ComponentResource {
     public readonly clusterRoleName: pulumi.Output<string>;
     public readonly clusterRoleBinding: k8s.rbac.v1.ClusterRoleBinding;
     public readonly deployment: kx.Deployment;
+    public readonly extdnsPodIdentityAssociation: aws.eks.PodIdentityAssociation;   
 
     constructor(
         name: string,
@@ -41,11 +43,19 @@ export class ExternalDns extends pulumi.ComponentResource {
             args.provider, args.serviceAccountRoleArn, args.namespace);
         this.serviceAccountName = this.serviceAccount.metadata.name;
 
+        this.extdnsPodIdentityAssociation = new aws.eks.PodIdentityAssociation("extdnsPodIdentityAssociation", {
+            clusterName: args.clusterName,
+            serviceAccount: this.serviceAccount.metadata.name,
+            roleArn: args.serviceAccountRoleArn,
+            namespace: args.namespace
+        })
+
         // K8s RBAC ClusterRole
         this.clusterRole = rbac.createClusterRole(name, args.provider);
         this.clusterRoleName = this.clusterRole.metadata.apply(m => m.name);
         this.clusterRoleBinding = rbac.createClusterRoleBinding(
             name, args.provider, args.namespace, this.serviceAccountName, this.clusterRoleName);
+
 
         // K8s Deployment
         const labels = { app: name };
@@ -67,7 +77,7 @@ export function createDeployment(
     const podBuilder = new kx.PodBuilder({
         serviceAccountName: serviceAccountName,
         containers: [{
-            image: "us.gcr.io/k8s-artifacts-prod/external-dns/external-dns:v0.13.2",
+            image: "us.gcr.io/k8s-artifacts-prod/external-dns/external-dns:v0.15.0",
             args: commandArgs,
             resources: {requests: {cpu: "256m", memory: "256Mi"}},
             securityContext: {

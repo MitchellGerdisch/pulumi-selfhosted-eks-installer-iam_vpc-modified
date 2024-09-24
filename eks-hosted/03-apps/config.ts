@@ -21,8 +21,8 @@ export const config = {
     appsNamespaceName: clusterStackRef.requireOutput("appsNamespaceName"),
     nodeGroupInstanceType: clusterStackRef.requireOutput("nodeGroupInstanceType"),
     albSecurityGroupId: clusterStackRef.requireOutput("albSecurityGroupId"),
-    clusterOidcProviderArn: clusterStackRef.requireOutput("clusterOidcProviderArn"),
-    clusterOidcProviderUrl: clusterStackRef.requireOutput("clusterOidcProviderUrl"),
+    // clusterOidcProviderArn: clusterStackRef.requireOutput("clusterOidcProviderArn"),
+    // clusterOidcProviderUrl: clusterStackRef.requireOutput("clusterOidcProviderUrl"),
 
     // DNS Hosted Zone and subdomain to operate on and use with ALB and ACM.
     hostedZoneDomainName: pulumiConfig.require("hostedZoneDomainName"),
@@ -60,6 +60,6 @@ export const config = {
     apiDisableEmailLogin: pulumiConfig.get("apiDisableEmailLogin") ?? 'false',
 
     // IAM
-    s3AccessRoleArn          : pulumiConfig.require("s3AccessRoleArn"),
+    podIdentityRoleArn          : pulumiConfig.require("podIdentityRoleArn"),
 
 };

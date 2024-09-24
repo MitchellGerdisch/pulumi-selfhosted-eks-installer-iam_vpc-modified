@@ -5,77 +5,172 @@ import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import { config } from "./config";
 
-// const projectName = pulumi.getProject();
 const projectName = config.projectName 
 const tags = { "Project": "pulumi-k8s-aws-cluster", "Owner": "pulumi"};
 
-/// CLEAN START 
-// --- Networking ---
+/////////////////////
+// --- EKS Cluster ---
+const serviceRole = aws.iam.Role.get("eksServiceRole", config.eksServiceRoleName)
+const instanceRole = aws.iam.Role.get("instanceRole", config.eksInstanceRoleName)
+const instanceProfile = aws.iam.InstanceProfile.get("ng-standard", config.instanceProfileName)
 
-// // Create a new VPC with custom settings.
-// const name = "pulumi";
-// const vpc = new awsx.ec2.Vpc(`${name}-vpc`,
-//     {
-//         cidrBlock: "172.16.0.0/16",
-//         numberOfAvailabilityZones: 3,
-//         subnetSpecs: [
-//             // Any non-null value is valid.
-//             { type: "Public", tags: {"kubernetes.io/role/elb": "1", ...tags}},
-//             { type: "Private", tags: {"kubernetes.io/role/internal-elb": "1", ...tags}},
-//         ],
-//         tags: { "Name": `${name}-vpc`, ...tags},
-//     },
-//     {
-//         transformations: [(args) => {
-//             if (args.type === "aws:ec2/vpc:Vpc" || args.type === "aws:ec2/subnet:Subnet") {
-//                 return {
-//                     props: args.props,
-//                     opts: pulumi.mergeOptions(args.opts, { ignoreChanges: ["tags"] })
-//                 }
-//             }
-//             return undefined;
-//         }],
-//     }
-// );
+// Create an EKS cluster.
+const cluster = new eks.Cluster(`${projectName}`, {
+    name: config.clusterName,
+    authenticationMode: eks.AuthenticationMode.API,
+    // We keep these serviceRole and instanceRole properties to prevent the EKS provider from creating its own roles.
+    serviceRole: serviceRole,
+    instanceRole: instanceRole,
+    vpcId: config.vpcId,
+    publicSubnetIds: config.publicSubnetIds,
+    privateSubnetIds: config.privateSubnetIds,
+    providerCredentialOpts: { profileName: process.env.AWS_PROFILE}, 
+    nodeAssociatePublicIpAddress: false,
+    skipDefaultNodeGroup: true,
+    deployDashboard: false,
+    version: config.clusterVersion,
+    createOidcProvider: false,
+    tags: tags,
+    enabledClusterLogTypes: ["api", "audit", "authenticator", "controllerManager", "scheduler"],
+}, {
+    transformations: [(args) => {
+        if (args.type === "aws:eks/cluster:Cluster") {
+            return {
+                props: args.props,
+                opts: pulumi.mergeOptions(args.opts, {
+                    protect: true,
+                })
+            }
+        }
+        return undefined;
+    }],
+});
 
-// export const vpcId = vpc.vpcId;
-// export const publicSubnetIds = vpc.publicSubnetIds;
-// export const privateSubnetIds = vpc.privateSubnetIds;
+// Export the cluster details.
+export const kubeconfig = cluster.kubeconfig.apply(JSON.stringify);
+export const clusterName = cluster.core.cluster.name;
+export const region = aws.config.region;
+export const nodeSecurityGroupId = cluster.nodeSecurityGroup.id; // For RDS
+export const nodeGroupInstanceType = config.pulumiNodeGroupInstanceType;
 
-/// CLEAN END
+/////////////////////
+/// Build node groups
+const ssmParam = pulumi.output(aws.ssm.getParameter({
+    // https://docs.aws.amazon.com/eks/latest/userguide/retrieve-ami-id.html
+    name: `/aws/service/eks/optimized-ami/${config.clusterVersion}/amazon-linux-2/recommended`,
+}))
+const amiId = ssmParam.value.apply(s => JSON.parse(s).image_id)
 
-/*
-Minimum System Requirements (per replica):
-API:     2048m cpu, 1024Mi ram
-Console: 1024m cpu, 512Mi ram
+// Create a standard node group.
+const ngStandard = new eks.NodeGroup(`${projectName}-ng-standard`, {
+    cluster: cluster,
+    instanceProfile: instanceProfile,
+    nodeAssociatePublicIpAddress: false,
+    nodeSecurityGroup: cluster.nodeSecurityGroup,
+    clusterIngressRule: cluster.eksClusterIngressRule,
+    amiId: amiId,
+    
+    instanceType: <aws.ec2.InstanceType>config.standardNodeGroupInstanceType,
+    desiredCapacity: config.standardNodeGroupDesiredCapacity,
+    minSize: config.standardNodeGroupMinSize,
+    maxSize: config.standardNodeGroupMaxSize,
 
-Requirements based on actual service usage and guidelines:
-https://www.pulumi.com/docs/guides/self-hosted/api/
-https://www.pulumi.com/docs/guides/self-hosted/console/
+    labels: {"amiId": `${amiId}`},
+    cloudFormationTags: clusterName.apply(clusterName => ({
+        "k8s.io/cluster-autoscaler/enabled": "true",
+        [`k8s.io/cluster-autoscaler/${clusterName}`]: "true",
+        ...tags,
+    })),
+}, {
+    providers: { kubernetes: cluster.provider},
+});
 
-The instance type is defined to:
+// Create a standard node group tainted for use only by self-hosted pulumi.
+const ngStandardPulumi = new eks.NodeGroup(`${projectName}-ng-standard-pulumi`, {
+    cluster: cluster,
+    instanceProfile: instanceProfile,
+    nodeAssociatePublicIpAddress: false,
+    nodeSecurityGroup: cluster.nodeSecurityGroup,
+    clusterIngressRule: cluster.eksClusterIngressRule,
+    amiId: amiId,
 
-- Enable user configuration
-- Accommodate minimum system reqs for HA and other required system pods.
-- Enable the ability to migrate the service during cluster maintenance.
-  This is based on the app's use of node labels in its node affinity to
-  shift workloads around. e.g.
-    ...
-    nodeSelectorTerms: [{
-        matchExpressions: [{
-                key: "beta.kubernetes.io/instance-type",
-                operator: "In",
-                values: [config.nodeGroupInstanceType],
-        }]
-    }]
+    instanceType: <aws.ec2.InstanceType>config.pulumiNodeGroupInstanceType,
+    desiredCapacity: config.pulumiNodeGroupDesiredCapacity,
+    minSize: config.pulumiNodeGroupMinSize,
+    maxSize: config.pulumiNodeGroupMaxSize,
 
-See for more details:
-- https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#built-in-node-labels
-- https://aws.amazon.com/ec2/instance-types/
+    labels: {"amiId": `${amiId}`},
+    taints: { "self-hosted-pulumi": { value: "true", effect: "NoSchedule"}},
+    cloudFormationTags: clusterName.apply(clusterName => ({
+        "k8s.io/cluster-autoscaler/enabled": "true",
+        [`k8s.io/cluster-autoscaler/${clusterName}`]: "true",
+        ...tags,
+    })),
+}, {
+    providers: { kubernetes: cluster.provider},
+});
 
-t3.xlarge: 4 vCPU, 16Gi ram
-*/
-  
+////////////
+// Enable necessary EKS addons
+// Note that "vpc-cni" is automatically installed by EKS and is not required to be installed.
+const eksPodIdentityAddon = new aws.eks.Addon("eksPodIdentityAddon", {
+    addonName: "eks-pod-identity-agent",
+    clusterName: clusterName,
+    addonVersion: "v1.3.2-eksbuild.2",
+}, {dependsOn: [ngStandard, ngStandardPulumi]});
+
+const coreDnsAddon = new aws.eks.Addon("coreDns", {
+    addonName: "coredns",
+    clusterName: clusterName,
+    addonVersion: "v1.11.1-eksbuild.8",
+}, {dependsOn: [ngStandard, ngStandardPulumi]});
+
+////////////
+// Create the ALB security group.
+const albSecurityGroup = createAlbSecurityGroup(projectName, {
+    vpcId: config.vpcId,
+    nodeSecurityGroup: cluster.nodeSecurityGroup,
+    tags: tags,
+    clusterName: clusterName,
+}, cluster);
+export const albSecurityGroupId = albSecurityGroup.id;
+
+////////////
+// Create Kubernetes namespaces needed later.
+const clusterSvcsNamespace = new k8s.core.v1.Namespace("cluster-svcs", undefined, { provider: cluster.provider, protect: true });
+export const clusterSvcsNamespaceName = clusterSvcsNamespace.metadata.name;
+
+const appsNamespace = new k8s.core.v1.Namespace("apps", undefined, { provider: cluster.provider, protect: true });
+export const appsNamespaceName = appsNamespace.metadata.name;
+
+// Create a resource quota in the apps namespace.
+//
+// Given 2 replicas each for HA:
+// API:     4096m cpu, 2048Mi ram
+// Console: 2048m cpu, 1024Mi ram
+//
+// 2x the HA requirements to create capacity for rolling updates of replicas:
+// API:     8192m cpu, 4096Mi ram
+// Console: 4096m cpu, 2048Mi ram
+//
+// Totals:  12288m cpu, 6144Mi ram
+const quotaAppsNamespace = new k8s.core.v1.ResourceQuota("apps", {
+    metadata: {namespace: appsNamespaceName},
+    spec: {
+        hard: {
+            cpu: "12288",
+            memory: "6144Mi",
+            pods: "20",
+            resourcequotas: "1",
+            services: "5",
+        },
+    }
+},{
+    provider: cluster.provider
+});
+
+////////////
+// Helper function for creating the ALB security group used above.
 export interface AlbSecGroupOptions {
     // The VPC in which to create the security group.
     vpcId: pulumi.Input<string>;
@@ -101,7 +196,7 @@ export interface AlbSecGroupOptions {
  * https://github.com/kubernetes-sigs/aws-alb-ingress-controller/pull/1019
  *
  */
-function createAlbSecurityGroup(name: string, args: AlbSecGroupOptions, parent: pulumi.ComponentResource): aws.ec2.SecurityGroup {
+export function createAlbSecurityGroup(name: string, args: AlbSecGroupOptions, parent: pulumi.ComponentResource): aws.ec2.SecurityGroup {
     const albSecurityGroup = new aws.ec2.SecurityGroup(`${name}-albSecurityGroup`, {
         vpcId: args.vpcId,
         revokeRulesOnDelete: true,
@@ -157,186 +252,3 @@ function createAlbSecurityGroup(name: string, args: AlbSecGroupOptions, parent: 
 
     return albSecurityGroup;
 }
-
-// --- EKS Cluster ---
-
-const serviceRole = aws.iam.Role.get("eksServiceRole", config.eksServiceRoleName)
-const instanceRole = aws.iam.Role.get("instanceRole", config.eksInstanceRoleName)
-// CLEAN const nodegroupIamRole = aws.iam.Role.get("nodegroupIamRole", config.nodegroupIamRoleName)
-// CLEAN const pulumiNodegroupIamRole = aws.iam.Role.get("pulumiNodegroupIamRole", config.pulumiNodegroupIamRoleName)
-
-// Create an EKS cluster.
-const cluster = new eks.Cluster(`${projectName}`, {
-    ////////////////////////////
-    /// MOD ///
-    // authenticationMode: "API_AND_CONFIG_MAP",
-    // authenticationMode: "API",
-    // accessEntries: {
-    //     nodeGroupIamRole: {
-    //         principalArn: config.nodegroupIamRoleArn,
-    //         type: eks.AccessEntryType.EC2_LINUX
-    //     },
-    //     pulumiNodeGroupIamRole: {
-    //         principalArn: config.pulumiNodegroupIamRoleArn,
-    //         type: eks.AccessEntryType.EC2_LINUX
-    //     },
-    //     eksServiceRole: {
-    //         principalArn: config.eksServiceRoleArn,
-    //         type: eks.AccessEntryType.EC2_LINUX
-    //     },
-    //     eksInstanceRole: {
-    //         principalArn: config.eksInstanceRoleArn,
-    //         type: eks.AccessEntryType.EC2_LINUX
-    //     }
-    // },
-    // instanceRoles: [ nodegroupIamRole, pulumiNodegroupIamRole],
-    // We keep these serviceRole and instanceRole properties to prevent the EKS provider from creating its own roles.
-    serviceRole: serviceRole,
-    // CLEAN instanceRoles: [nodegroupIamRole, pulumiNodegroupIamRole, instanceRole],
-    instanceRole: instanceRole,
-    ////////////////////////////
-    vpcId: config.vpcId,
-    publicSubnetIds: config.publicSubnetIds,
-    privateSubnetIds: config.privateSubnetIds,
-    providerCredentialOpts: { profileName: process.env.AWS_PROFILE}, 
-    nodeAssociatePublicIpAddress: false,
-    skipDefaultNodeGroup: true,
-    deployDashboard: false,
-    version: config.clusterVersion,
-    createOidcProvider: true,
-    tags: tags,
-    enabledClusterLogTypes: ["api", "audit", "authenticator", "controllerManager", "scheduler"],
-}, {
-    transformations: [(args) => {
-        if (args.type === "aws:eks/cluster:Cluster") {
-            return {
-                props: args.props,
-                opts: pulumi.mergeOptions(args.opts, {
-                    protect: true,
-                })
-            }
-        }
-        return undefined;
-    }],
-});
-
-// Export the cluster details.
-export const kubeconfig = cluster.kubeconfig.apply(JSON.stringify);
-export const clusterName = cluster.core.cluster.name;
-export const region = aws.config.region;
-export const nodeSecurityGroupId = cluster.nodeSecurityGroup.id; // For RDS
-export const nodeGroupInstanceType = config.pulumiNodeGroupInstanceType;
-
-// Create the ALB security group.
-const albSecurityGroup = createAlbSecurityGroup(projectName, {
-    vpcId: config.vpcId,
-    nodeSecurityGroup: cluster.nodeSecurityGroup,
-    tags: tags,
-    clusterName: clusterName,
-}, cluster);
-export const albSecurityGroupId = albSecurityGroup.id;
-
-// Export the cluster OIDC provider URL.
-if (!cluster?.core?.oidcProvider) {
-    throw new Error("Invalid cluster OIDC provider URL");
-}
-const clusterOidcProvider = cluster.core.oidcProvider;
-export const clusterOidcProviderArn = clusterOidcProvider.arn;
-export const clusterOidcProviderUrl = clusterOidcProvider.url;
-
-// Create a standard node group.
-
-const ssmParam = pulumi.output(aws.ssm.getParameter({
-    // https://docs.aws.amazon.com/eks/latest/userguide/retrieve-ami-id.html
-    name: `/aws/service/eks/optimized-ami/${config.clusterVersion}/amazon-linux-2/recommended`,
-}))
-const amiId = ssmParam.value.apply(s => JSON.parse(s).image_id)
-
-const ngStandard = new eks.NodeGroup(`${projectName}-ng-standard`, {
-    cluster: cluster,
-    /// MOD ///
-    /// CLEAN instanceProfile: new aws.iam.InstanceProfile("ng-standard", {role: config.nodegroupIamRoleName}),
-    instanceProfile: new aws.iam.InstanceProfile("ng-standard", {role: config.eksInstanceRoleName}),
-    nodeAssociatePublicIpAddress: false,
-    nodeSecurityGroup: cluster.nodeSecurityGroup,
-    clusterIngressRule: cluster.eksClusterIngressRule,
-    amiId: amiId,
-    
-    instanceType: <aws.ec2.InstanceType>config.standardNodeGroupInstanceType,
-    desiredCapacity: config.standardNodeGroupDesiredCapacity,
-    minSize: config.standardNodeGroupMinSize,
-    maxSize: config.standardNodeGroupMaxSize,
-
-    /// MOD ///
-    /// NOT SURE HOW THIS EVER WORKED SINCE IT'S OUTPUT<T>
-    // labels: {"amiId": `${amiId}`},
-    cloudFormationTags: clusterName.apply(clusterName => ({
-        "k8s.io/cluster-autoscaler/enabled": "true",
-        [`k8s.io/cluster-autoscaler/${clusterName}`]: "true",
-        ...tags,
-    })),
-}, {
-    providers: { kubernetes: cluster.provider},
-});
-
-// Create a standard node group tainted for use only by self-hosted pulumi.
-const ngStandardPulumi = new eks.NodeGroup(`${projectName}-ng-standard-pulumi`, {
-    cluster: cluster,
-    /// MOD ///
-    /// CLEAN instanceProfile: new aws.iam.InstanceProfile("ng-standard-pulumi", {role: config.pulumiNodegroupIamRoleName}),
-    instanceProfile: new aws.iam.InstanceProfile("ng-standard-pulumi", {role: config.eksInstanceRoleName}),
-    nodeAssociatePublicIpAddress: false,
-    nodeSecurityGroup: cluster.nodeSecurityGroup,
-    clusterIngressRule: cluster.eksClusterIngressRule,
-    amiId: amiId,
-
-    instanceType: <aws.ec2.InstanceType>config.pulumiNodeGroupInstanceType,
-    desiredCapacity: config.pulumiNodeGroupDesiredCapacity,
-    minSize: config.pulumiNodeGroupMinSize,
-    maxSize: config.pulumiNodeGroupMaxSize,
-
-    /// MOD ///
-    /// NOT SURE HOW THIS EVER WORKED SINCE IT'S OUTPUT<T>
-    labels: {"amiId": `${amiId}`},
-    taints: { "self-hosted-pulumi": { value: "true", effect: "NoSchedule"}},
-    cloudFormationTags: clusterName.apply(clusterName => ({
-        "k8s.io/cluster-autoscaler/enabled": "true",
-        [`k8s.io/cluster-autoscaler/${clusterName}`]: "true",
-        ...tags,
-    })),
-}, {
-    providers: { kubernetes: cluster.provider},
-});
-
-// Create Kubernetes namespaces.
-const clusterSvcsNamespace = new k8s.core.v1.Namespace("cluster-svcs", undefined, { provider: cluster.provider, protect: true });
-export const clusterSvcsNamespaceName = clusterSvcsNamespace.metadata.name;
-
-const appsNamespace = new k8s.core.v1.Namespace("apps", undefined, { provider: cluster.provider, protect: true });
-export const appsNamespaceName = appsNamespace.metadata.name;
-
-// Create a resource quota in the apps namespace.
-//
-// Given 2 replicas each for HA:
-// API:     4096m cpu, 2048Mi ram
-// Console: 2048m cpu, 1024Mi ram
-//
-// 2x the HA requirements to create capacity for rolling updates of replicas:
-// API:     8192m cpu, 4096Mi ram
-// Console: 4096m cpu, 2048Mi ram
-//
-// Totals:  12288m cpu, 6144Mi ram
-const quotaAppsNamespace = new k8s.core.v1.ResourceQuota("apps", {
-    metadata: {namespace: appsNamespaceName},
-    spec: {
-        hard: {
-            cpu: "12288",
-            memory: "6144Mi",
-            pods: "20",
-            resourcequotas: "1",
-            services: "5",
-        },
-    }
-},{
-    provider: cluster.provider
-});

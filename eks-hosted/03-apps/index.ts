@@ -6,7 +6,7 @@ import { types } from "@pulumi/kubernetesx";
 import * as pulumi from "@pulumi/pulumi";
 import EnvMap = types.EnvMap;
 import { config } from "./config";
-import * as rbac from "./rbac";
+// import * as rbac from "./rbac";
 import { configurePulumiSecretProvider } from "./secrets-management"
 
 const migrationsImage = `pulumi/migrations:${config.imageTag}`;
@@ -25,6 +25,8 @@ const consoleReplicas = config.consoleReplicas;
 // Create a k8s provider to the cluster.
 const provider = new k8s.Provider("provider", { kubeconfig: config.kubeconfig, deleteUnreachable: true });
 
+///////////////
+// K8s secrets used by the applications
 // Configure secrets provider, the component the Pulumi Service uses to encrypt stack secrets.
 const secretsIntegration = configurePulumiSecretProvider(config, provider)
 
@@ -123,12 +125,32 @@ const consoleEmailLoginConfig = {
     "PULUMI_HIDE_EMAIL_SIGNUP": (config.consoleHideEmailSignup === "true" ? "true" : null),
 }
 
+///////////////
 // Create S3 Buckets for the service checkpoints and policy packs.
 const checkpointsBucket = new aws.s3.Bucket(`pulumi-checkpoints`, {}, { protect: true});
 const policyPacksBucket = new aws.s3.Bucket(`pulumi-policypacks`, {}, { protect: true});
 export const checkpointsS3BucketName = checkpointsBucket.id;
 export const policyPacksS3BucketName = policyPacksBucket.id;
 
+// Set up access for S3 buckets by the Pulimi service.
+const apiServiceAccount = new k8s.core.v1.ServiceAccount(apiName, {
+    metadata: {
+        namespace: config.appsNamespaceName,
+        name: apiName,
+        // annotations: {
+        //     "eks.amazonaws.com/role-arn": roleArn,
+        // },
+    },
+}, { provider });
+
+const saPodIdentityAssociation = new aws.eks.PodIdentityAssociation(apiName, {
+    clusterName: config.clusterName,
+    serviceAccount: apiServiceAccount.metadata.name,
+    roleArn: config.podIdentityRoleArn,
+    namespace: config.appsNamespaceName,
+})
+
+//////////////
 // Environment variables for the API service.
 const awsRegion = pulumi.output(aws.getRegion())
 const serviceEnv = pulumi
@@ -152,24 +174,14 @@ const serviceEnv = pulumi
             ...apiEmailLoginConfig,
         } as EnvMap;
 
-
-
         // Add env vars specific to managing secrets.
         envVars[secretsIntegration.envVarName] = secretsIntegration.envVarValue;
 
         return envVars;
     });
 
-// Create IAM and ServiceAccount for S3 access.
-/// MOD - s3Role is created outside the stack
-// const s3Role = rbac.createIAM(apiName, config.appsNamespaceName,
-//     config.clusterOidcProviderArn, config.clusterOidcProviderUrl);
-
-// K8s resources
-const serviceAccount = rbac.createServiceAccount(apiName,
-    provider, config.s3AccessRoleArn, config.appsNamespaceName);
-const serviceAccountName = serviceAccount.metadata.name;
-
+////////////
+// Deploy services
 // Minimum System Requirements (per replica):
 // API:     2048m cpu, 1024Mi ram
 // Console: 1024m cpu, 512Mi ram
@@ -228,8 +240,7 @@ export const apiPodBuilder = new kx.PodBuilder({
             effect: "NoSchedule",
         },
     ],
-    serviceAccountName: serviceAccountName,
-    // TODO: simplify this logic once initContainer support is added to kx (https://github.com/pulumi/pulumi-kubernetesx/issues/53)
+    serviceAccountName: apiServiceAccount.metadata.name,
     initContainers: [{
         name: "migration",
         image: migrationsImage,
@@ -269,8 +280,10 @@ const apiDeployment = new kx.Deployment(apiName, {
     spec: apiPodBuilder.asDeploymentSpec({ replicas: apiReplicas }),
 }, { provider });
 const apiService = apiDeployment.createService();
-export const serviceEndpoint = pulumi.interpolate`https://${apiSubdomainName}.${config.hostedZoneDomainSubdomain}.${config.hostedZoneDomainName}`;
+const serviceEndpoint = pulumi.interpolate`${apiSubdomainName}.${config.hostedZoneDomainSubdomain}.${config.hostedZoneDomainName}`;
+export const serviceUrl = pulumi.interpolate`https://${serviceEndpoint}`;
 
+/////
 // Deploy the Console.
 const consolePodBuilder = new kx.PodBuilder({
     affinity: {
@@ -337,7 +350,8 @@ const consoleDeployment = new kx.Deployment(consoleName, {
     spec: consolePodBuilder.asDeploymentSpec({ replicas: consoleReplicas })
 }, { provider });
 const consoleService = consoleDeployment.createService();
-export const consoleEndpoint = pulumi.interpolate`https://${consoleSubdomainName}.${config.hostedZoneDomainSubdomain}.${config.hostedZoneDomainName}`;
+const consoleEndpoint = pulumi.interpolate`${consoleSubdomainName}.${config.hostedZoneDomainSubdomain}.${config.hostedZoneDomainName}`;
+export const consoleURL = pulumi.interpolate`https://${consoleEndpoint}`;
 
 // Create a PodDisruptionBudget on Pods to ensure availability during evictions
 // by selecting a set of labels.
@@ -347,8 +361,8 @@ function createPodDisruptionBudget(
     labels: pulumi.Input<any>,
     namespace: pulumi.Input<string>,
     provider: k8s.Provider,
-): k8s.policy.v1beta1.PodDisruptionBudget {
-    return new k8s.policy.v1beta1.PodDisruptionBudget(
+): k8s.policy.v1.PodDisruptionBudget {
+    return new k8s.policy.v1.PodDisruptionBudget(
         name,
         {
             metadata: { labels: labels, namespace: namespace, },
@@ -362,6 +376,7 @@ function createPodDisruptionBudget(
 createPodDisruptionBudget(apiName, "66%", apiDeployment.metadata.labels, config.appsNamespaceName, provider);
 createPodDisruptionBudget(consoleName, "66%", consoleDeployment.metadata.labels, config.appsNamespaceName, provider);
 
+////////////
 // Create the wildcard TLS cert in ACM to use with the ALB on both the API and
 // the console.
 const certCertificate = new aws.acm.Certificate("cert", {
@@ -385,6 +400,7 @@ const certCertificateValidation = new aws.acm.CertificateValidation("cert", {
     validationRecordFqdns: [certValidation.fqdn],
 });
 
+//////////////
 // Create the API and Console Ingress.
 // Used with ALB, and external-dns.
 const apiIngress = new k8s.networking.v1.Ingress(apiName,
@@ -473,3 +489,26 @@ const consoleIngress = new k8s.networking.v1.Ingress(consoleName,
     },
     { provider }
 );
+
+export const serviceLoadbalancerDnsName = apiIngress.status.loadBalancer.ingress[0].hostname;
+export const consoleLoadbalancerDnsName = consoleIngress.status.loadBalancer.ingress[0].hostname;   
+
+////////////
+// Create a Route53 record for the API and Console.
+const zoneId = aws.route53.getZoneOutput({ name: config.hostedZoneDomainName}).zoneId
+
+const consoleDnsRecord = new aws.route53.Record("consoleEndDnsRecord", {
+  zoneId: zoneId,
+  name: consoleEndpoint,
+  type: "CNAME",
+  ttl: 300,
+  records: [ consoleLoadbalancerDnsName]
+})
+
+const serviceDnsRecord = new aws.route53.Record("serviceEndDnsRecord", {
+  zoneId: zoneId,
+  name: serviceEndpoint,
+  type: "CNAME",
+  ttl: 300,
+  records: [ serviceLoadbalancerDnsName]
+})
