@@ -6,4 +6,4 @@ config:
   hostedZoneDomainName: pulumi-ce.team
   hostedZoneDomainSubdomain: mitchselfhosted
   imageTag: latest
-  podIdentityRoleArn: arn:aws:iam::052848974346:role/podIdentityRole-84deb51
+  podIdentityRoleArn       : "arn:aws:iam::052848974346:role/podIdentityRole-7dc4d58"
