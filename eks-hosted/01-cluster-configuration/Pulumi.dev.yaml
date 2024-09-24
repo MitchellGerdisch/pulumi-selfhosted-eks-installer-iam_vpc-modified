@@ -1,20 +1,22 @@
 config:
   aws:region: us-east-2
-  pulumi-selfhosted-01-cluster-configuration:clusterName: mitchselfhost-eks
-  pulumi-selfhosted-01-cluster-configuration:eksInstanceRoleName: mitchselfhost-instanceRole-7a5966b
-  pulumi-selfhosted-01-cluster-configuration:eksServiceRoleName: mitchselfhost-eksRole-5fac034
-  pulumi-selfhosted-01-cluster-configuration:instanceProfileName: ng-standard-678514d
-  pulumi-selfhosted-01-cluster-configuration:podIdentityRoleArn: arn:aws:iam::052848974346:role/podIdentityRole-84deb51
-  pulumi-selfhosted-01-cluster-configuration:privateSubnetIds:
-    - subnet-0a75344190683b6c0
-    - subnet-0a03ecf1821c1a46c
-    - subnet-07db70c257ed9b4ef
   pulumi-selfhosted-01-cluster-configuration:projectName: mitchselfhost
-  pulumi-selfhosted-01-cluster-configuration:publicSubnetIds:
-    - subnet-0f544b2696722dca4
-    - subnet-07149ad285f0b2d5c
-    - subnet-087c866fc43f1bf07
+
   # This is an role that the user would assume when interacting with the cluster or aws. E.g. the role that one would use to run "aws s3 ls" cli
   pulumi-selfhosted-01-cluster-configuration:ssoRoleArn:
     secure: AAABAJVIVhQH68HnI9M8CaIpXut4qUMA3DPH6SNcrV/mgjgCQNQgE5KpAkINzwXoUHpjU12Xtp3x2Ng7tlf49YKvUPl2gey4GUrdFx7GE1FZWYjNk8pnjsXbAlgzj6kkU9fSaEbAOr5AdeEjH+EsBj/NdL05GvBYSu3M/DArDOYQE0Kb5qP/LKyiPcsmmgzi6HopAUBb2bqRHfw=
-  pulumi-selfhosted-01-cluster-configuration:vpcId: vpc-057a6a133f8c337eb
+  clusterName              : "mitchselfhost-eks"
+  databaseMonitoringRoleArn: "arn:aws:iam::052848974346:role/databaseMonitoringRole-b0f40d0"
+  eksInstanceRoleName      : "mitchselfhost-instanceRole-b3a74fc"
+  eksServiceRoleName       : "mitchselfhost-eksRole-e80b9d0"
+  instanceProfileName      : "ng-standard-0b8a1c4"
+  podIdentityRoleArn       : "arn:aws:iam::052848974346:role/podIdentityRole-7dc4d58"
+  privateSubnetIds         : 
+    - "subnet-0da8a592c2e8960bb"
+    - "subnet-0441ee8d6651d44f0"
+    - "subnet-0a0f834481388513d"
+  publicSubnetIds          : 
+    - "subnet-0c3ee7d73a1f66d34"
+    - "subnet-0d590014a86a37af8"
+    - "subnet-096151ed1b6ffada6"
+  vpcId                    : "vpc-0f991d9c4f9891c95"

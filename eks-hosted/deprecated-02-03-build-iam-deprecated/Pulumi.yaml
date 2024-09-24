@@ -1,3 +1,0 @@
-name: build-iam-02-03
-description: Platform resources - VPC, EKS, IAM, etc.
-runtime: nodejs

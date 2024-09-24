@@ -1,15 +1,15 @@
 config:
   pulumi-selfhosted-02-cluster-services:clusterStackRef: MitchGerdisch/pulumi-selfhosted-01-cluster-configuration/dev
-  privateSubnetIds:     
-    - subnet-0a75344190683b6c0
-    - subnet-0a03ecf1821c1a46c
-    - subnet-07db70c257ed9b4ef
-  publicSubnetIds:      
-    - subnet-0f544b2696722dca4
-    - subnet-07149ad285f0b2d5c
-    - subnet-087c866fc43f1bf07
-  vpcId:                vpc-057a6a133f8c337eb
-  databaseMonitoringRoleArn: arn:aws:iam::052848974346:role/databaseMonitoringRole-cf06964
-  podIdentityRoleArn       : arn:aws:iam::052848974346:role/podIdentityRole-84deb51
   hostedZoneDomainName: pulumi-ce.team
+  databaseMonitoringRoleArn: "arn:aws:iam::052848974346:role/databaseMonitoringRole-b0f40d0"
+  podIdentityRoleArn       : "arn:aws:iam::052848974346:role/podIdentityRole-7dc4d58"
+  privateSubnetIds         : 
+    - "subnet-0da8a592c2e8960bb"
+    - "subnet-0441ee8d6651d44f0"
+    - "subnet-0a0f834481388513d"
+  publicSubnetIds          : 
+    - "subnet-0c3ee7d73a1f66d34"
+    - "subnet-0d590014a86a37af8"
+    - "subnet-096151ed1b6ffada6"
+  vpcId                    : "vpc-0f991d9c4f9891c95"
 
