@@ -6,17 +6,18 @@ config:
   pulumi-selfhosted-01-cluster-configuration:ssoRoleArn:
     secure: AAABAJVIVhQH68HnI9M8CaIpXut4qUMA3DPH6SNcrV/mgjgCQNQgE5KpAkINzwXoUHpjU12Xtp3x2Ng7tlf49YKvUPl2gey4GUrdFx7GE1FZWYjNk8pnjsXbAlgzj6kkU9fSaEbAOr5AdeEjH+EsBj/NdL05GvBYSu3M/DArDOYQE0Kb5qP/LKyiPcsmmgzi6HopAUBb2bqRHfw=
   clusterName              : "mitchselfhost-eks"
-  databaseMonitoringRoleArn: "arn:aws:iam::052848974346:role/databaseMonitoringRole-b0f40d0"
-  eksInstanceRoleName      : "mitchselfhost-instanceRole-b3a74fc"
-  eksServiceRoleName       : "mitchselfhost-eksRole-e80b9d0"
-  instanceProfileName      : "ng-standard-0b8a1c4"
-  podIdentityRoleArn       : "arn:aws:iam::052848974346:role/podIdentityRole-7dc4d58"
+  
+  databaseMonitoringRoleArn: "arn:aws:iam::052848974346:role/databaseMonitoringRole-740edc0"
+  eksInstanceRoleName      : "mitchselfhost-instanceRole-d5fa363"
+  eksServiceRoleName       : "mitchselfhost-eksRole-412112d"
+  instanceProfileName      : "ng-standard-a24a3c4"
+  podIdentityRoleArn       : "arn:aws:iam::052848974346:role/podIdentityRole-7df6c5e"
   privateSubnetIds         : 
-    - "subnet-0da8a592c2e8960bb"
-    - "subnet-0441ee8d6651d44f0"
-    - "subnet-0a0f834481388513d"
+    - "subnet-08fd68c7f774e7aef"
+    - "subnet-0394001e0f2604170"
+    - "subnet-0118c16199a12a19d"
   publicSubnetIds          : 
-    - "subnet-0c3ee7d73a1f66d34"
-    - "subnet-0d590014a86a37af8"
-    - "subnet-096151ed1b6ffada6"
-  vpcId                    : "vpc-0f991d9c4f9891c95"
+    - "subnet-02291782b8498ad66"
+    - "subnet-05a520de51861bbd1"
+    - "subnet-02d833d154175ffff"
+  vpcId                    : "vpc-0bdbeba5175ce14e8"

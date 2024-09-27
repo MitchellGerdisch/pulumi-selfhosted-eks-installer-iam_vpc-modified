@@ -138,7 +138,7 @@ const apiServiceAccount = new k8s.core.v1.ServiceAccount(apiName, {
         namespace: config.appsNamespaceName,
         name: apiName,
         // annotations: {
-        //     "eks.amazonaws.com/role-arn": roleArn,
+        //     "eks.amazonaws.com/role-arn": config.podIdentityRoleArn,
         // },
     },
 }, { provider });
@@ -278,7 +278,7 @@ export const apiPodBuilder = new kx.PodBuilder({
 const apiDeployment = new kx.Deployment(apiName, {
     metadata: { namespace: config.appsNamespaceName },
     spec: apiPodBuilder.asDeploymentSpec({ replicas: apiReplicas }),
-}, { provider });
+}, { provider: provider, dependsOn: [apiServiceAccount] });
 const apiService = apiDeployment.createService();
 const serviceEndpoint = pulumi.interpolate`${apiSubdomainName}.${config.hostedZoneDomainSubdomain}.${config.hostedZoneDomainName}`;
 export const serviceUrl = pulumi.interpolate`https://${serviceEndpoint}`;
@@ -348,7 +348,7 @@ const consolePodBuilder = new kx.PodBuilder({
 const consoleDeployment = new kx.Deployment(consoleName, {
     metadata: { namespace: config.appsNamespaceName },
     spec: consolePodBuilder.asDeploymentSpec({ replicas: consoleReplicas })
-}, { provider });
+}, { provider: provider });
 const consoleService = consoleDeployment.createService();
 const consoleEndpoint = pulumi.interpolate`${consoleSubdomainName}.${config.hostedZoneDomainSubdomain}.${config.hostedZoneDomainName}`;
 export const consoleURL = pulumi.interpolate`https://${consoleEndpoint}`;
