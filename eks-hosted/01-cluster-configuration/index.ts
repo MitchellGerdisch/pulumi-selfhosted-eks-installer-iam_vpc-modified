@@ -17,7 +17,7 @@ const instanceProfile = aws.iam.InstanceProfile.get("ng-standard", config.instan
 // Create an EKS cluster.
 const cluster = new eks.Cluster(`${projectName}`, {
     name: config.clusterName,
-    authenticationMode: "API_AND_CONFIG_MAP",
+    authenticationMode: "API",
     // We keep these serviceRole and instanceRole properties to prevent the EKS provider from creating its own roles.
     serviceRole: serviceRole,
     instanceRole: instanceRole,
@@ -62,6 +62,7 @@ const ssmParam = pulumi.output(aws.ssm.getParameter({
 const amiId = ssmParam.value.apply(s => JSON.parse(s).image_id)
 
 // Create a standard node group.
+///// IF STILL NOT WORKING Change to using base aws package for nodegroup ala pod example
 const ngStandard = new eks.NodeGroup(`${projectName}-ng-standard`, {
     cluster: cluster,
     instanceProfile: instanceProfile,

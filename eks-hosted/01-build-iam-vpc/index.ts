@@ -25,18 +25,7 @@ const eksRole = new aws.iam.Role(`${config.baseName}-eksRole`, {
 export const eksServiceRoleName = eksRole.name;
 
 const instanceRole = new aws.iam.Role(`${config.baseName}-instanceRole`, {
-    assumeRolePolicy: {
-        Statement:[
-            {
-                Action: "sts:AssumeRole",
-                Effect: "Allow",
-                Principal: {
-                    Service: "ec2.amazonaws.com"
-                }
-            }
-        ],
-        Version: "2012-10-17"
-    },
+    assumeRolePolicy: aws.iam.assumeRolePolicyForPrincipal(aws.iam.Principals.Ec2Principal),
     managedPolicyArns: [
         "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly",
         "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy",
