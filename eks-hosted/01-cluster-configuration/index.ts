@@ -62,7 +62,6 @@ const ssmParam = pulumi.output(aws.ssm.getParameter({
 const amiId = ssmParam.value.apply(s => JSON.parse(s).image_id)
 
 // Create a standard node group.
-///// IF STILL NOT WORKING Change to using base aws package for nodegroup ala pod example
 const ngStandard = new eks.NodeGroup(`${projectName}-ng-standard`, {
     cluster: cluster,
     instanceProfile: instanceProfile,
