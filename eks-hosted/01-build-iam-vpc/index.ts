@@ -43,6 +43,10 @@ const instanceRole = new aws.iam.Role(`${config.baseName}-instanceRole`, {
         "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy",
     ],
 });
+const instanceRoleS3Policy = new aws.iam.RolePolicyAttachment("instanceRoleS3Policy", {
+    policyArn: "arn:aws:iam::aws:policy/AmazonS3FullAccess",
+    role: instanceRole 
+})
 export const eksInstanceRoleName = instanceRole.name;
 
 const instanceProfile =  new aws.iam.InstanceProfile("ng-standard", {role: eksInstanceRoleName})

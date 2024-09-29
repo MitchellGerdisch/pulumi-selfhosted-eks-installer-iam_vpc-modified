@@ -17,7 +17,7 @@ const instanceProfile = aws.iam.InstanceProfile.get("ng-standard", config.instan
 // Create an EKS cluster.
 const cluster = new eks.Cluster(`${projectName}`, {
     name: config.clusterName,
-    authenticationMode: eks.AuthenticationMode.API,
+    authenticationMode: "API_AND_CONFIG_MAP",
     // We keep these serviceRole and instanceRole properties to prevent the EKS provider from creating its own roles.
     serviceRole: serviceRole,
     instanceRole: instanceRole,
