@@ -529,17 +529,30 @@ const webkeysCleanup = new k8s.batch.v1.Job("webkeys-cleanup", {
                 containers: [{
                     name: "webkeys-cleanup",
                     image: "alpine",
+                    resources: { requests: { cpu: "10m", memory: "10Mi" } },
                     command: [
                         "sh", 
                         "-c", 
-                        config.dbConn.apply(db => 
-                            `apk add mysql-client && mysql -h ${db.host} -u ${db.username} -p${db.password} -D pulumi -e 'delete from WebKeys;'`
-                        )
+                        "apk add mysql-client && mysql -h $(MYSQL_HOST) -u $(MYSQL_ROOT_USERNAME) -p$(MYSQL_ROOT_PASSWORD) -D pulumi -e 'delete from WebKeys';"
+                    ],
+                    env: [
+                        {
+                            name: "MYSQL_HOST",
+                            valueFrom: dbConnSecret.asEnvValue("host"),
+                        },
+                        {
+                            name: "MYSQL_ROOT_USERNAME",
+                            valueFrom: dbConnSecret.asEnvValue("username"),
+                        },
+                        {
+                            name: "MYSQL_ROOT_PASSWORD",
+                            valueFrom: dbConnSecret.asEnvValue("password"),
+                        },
                     ],
                 }],
                 restartPolicy: "Never", // Ensure the pod does not restart
             },
         },
-        backoffLimit: 1, // Number of retries before considering the job as failed
+        backoffLimit: 0, // Number of retries before considering the job as failed
     },
-}, { provider: provider, dependsOn: [apiService]});
+}, { provider: provider});
