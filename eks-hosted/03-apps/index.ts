@@ -180,6 +180,8 @@ const serviceEnv = pulumi
         return envVars;
     });
 
+   
+
 ////////////
 // Deploy services
 // Minimum System Requirements (per replica):
@@ -193,7 +195,7 @@ const apiResources = { requests: { cpu: "2048m", memory: "1024Mi" } };
 const migrationResources = { requests: { cpu: "128m", memory: "128Mi" } };
 const consoleResources = { requests: { cpu: "1024m", memory: "512Mi" } };
 
-// Deploy the API service.
+// // Deploy the API service.
 export const apiPodBuilder = new kx.PodBuilder({
     affinity: {
         // Target the Pods to run on nodes that match the labels for the node
@@ -283,7 +285,7 @@ const apiService = apiDeployment.createService();
 const serviceEndpoint = pulumi.interpolate`${apiSubdomainName}.${config.hostedZoneDomainSubdomain}.${config.hostedZoneDomainName}`;
 export const serviceUrl = pulumi.interpolate`https://${serviceEndpoint}`;
 
-/////
+///
 // Deploy the Console.
 const consolePodBuilder = new kx.PodBuilder({
     affinity: {
@@ -512,3 +514,45 @@ const serviceDnsRecord = new aws.route53.Record("serviceEndDnsRecord", {
   ttl: 300,
   records: [ serviceLoadbalancerDnsName]
 })
+
+
+/////////////
+// With self-hosted installations, there is currently an issue where a WebKey is created in the DB such that it interferes with subsequent
+// upgrades. This is a workaround to delete the WebKey from the DB.
+const webkeysCleanup = new k8s.batch.v1.Job("webkeys-cleanup", {
+    metadata: {
+        namespace: config.appsNamespaceName,
+    },
+    spec: {
+        template: {
+            spec: {
+                containers: [{
+                    name: "webkeys-cleanup",
+                    image: "alpine",
+                    resources: { requests: { cpu: "10m", memory: "10Mi" } },
+                    command: [
+                        "sh", 
+                        "-c", 
+                        "apk add mysql-client && mysql -h $(MYSQL_HOST) -u $(MYSQL_ROOT_USERNAME) -p$(MYSQL_ROOT_PASSWORD) -D pulumi -e 'delete from WebKeys';"
+                    ],
+                    env: [
+                        {
+                            name: "MYSQL_HOST",
+                            valueFrom: dbConnSecret.asEnvValue("host"),
+                        },
+                        {
+                            name: "MYSQL_ROOT_USERNAME",
+                            valueFrom: dbConnSecret.asEnvValue("username"),
+                        },
+                        {
+                            name: "MYSQL_ROOT_PASSWORD",
+                            valueFrom: dbConnSecret.asEnvValue("password"),
+                        },
+                    ],
+                }],
+                restartPolicy: "Never", // Ensure the pod does not restart
+            },
+        },
+        backoffLimit: 0, // Number of retries before considering the job as failed
+    },
+}, { provider: provider});
