@@ -2,6 +2,8 @@ config:
   pulumi-selfhosted-02-cluster-services:clusterStackRef: MitchGerdisch/pulumi-selfhosted-01-cluster-configuration/dev
   hostedZoneDomainName: pulumi-ce.team
 
+  dbInstanceType: db.t4g.medium
+
   databaseMonitoringRoleArn: "arn:aws:iam::052848974346:role/databaseMonitoringRole-740edc0"
   podIdentityRoleArn       : "arn:aws:iam::052848974346:role/podIdentityRole-7df6c5e"
   privateSubnetIds         : 
