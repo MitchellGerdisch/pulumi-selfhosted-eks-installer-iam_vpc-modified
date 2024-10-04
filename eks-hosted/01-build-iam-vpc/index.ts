@@ -4,7 +4,7 @@ import * as pulumi from "@pulumi/pulumi";
 import { config } from "./config";
 import { albControllerPolicyStatement } from "./albControllerPolicy";
 
-/// SERVICE ROLES ///
+/// Cluster Role ///
 const eksRole = new aws.iam.Role(`${config.baseName}-eksRole`, {
     assumeRolePolicy: {
         Statement: [
@@ -24,6 +24,7 @@ const eksRole = new aws.iam.Role(`${config.baseName}-eksRole`, {
 });
 export const eksServiceRoleName = eksRole.name;
 
+/// Instance Role ///
 const instanceRole = new aws.iam.Role(`${config.baseName}-instanceRole`, {
     assumeRolePolicy: aws.iam.assumeRolePolicyForPrincipal(aws.iam.Principals.Ec2Principal),
     managedPolicyArns: [
@@ -32,52 +33,25 @@ const instanceRole = new aws.iam.Role(`${config.baseName}-instanceRole`, {
         "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy",
     ],
 });
+// S3 management
 const instanceRoleS3Policy = new aws.iam.RolePolicyAttachment("instanceRoleS3Policy", {
     policyArn: "arn:aws:iam::aws:policy/AmazonS3FullAccess",
     role: instanceRole 
+})
+// ALB management (used by ingress controller)
+const albControllerPolicy = new aws.iam.Policy("albControllerPolicy", {
+    policy: albControllerPolicyStatement
+});
+const rpaAlbPolicy = new aws.iam.RolePolicyAttachment("albPolicy", {
+    policyArn: albControllerPolicy.arn,
+    role: instanceRole
 })
 export const eksInstanceRoleName = instanceRole.name;
 
 const instanceProfile =  new aws.iam.InstanceProfile("ng-standard", {role: eksInstanceRoleName})
 export const instanceProfileName = instanceProfile.name;
 
-// Used for pod identity roles - instead of using IRSA OIDC stuff.
-const podIdentityRole = new aws.iam.Role("podIdentityRole", {
-    assumeRolePolicy: JSON.stringify({
-        Version: "2012-10-17",
-        Statement: [{
-            Principal: {
-                Service: "pods.eks.amazonaws.com"
-            },
-            Effect: "Allow",
-            Action: [
-                "sts:AssumeRole",
-                "sts:TagSession"
-            ]
-        }]
-    })
-});
-
-// Allows pods to manage ALBs
-const albControllerPolicy = new aws.iam.Policy("albControllerPolicy", {
-    policy: albControllerPolicyStatement
-});
-
-// Allows ingress controller to manage ALBs
-const rpaAlbPolicy = new aws.iam.RolePolicyAttachment("albPolicy", {
-    policyArn: albControllerPolicy.arn,
-    role: podIdentityRole
-})
-
-// Allows pods to manage S3 - needed by Pulumi services
-const s3Policy = new aws.iam.RolePolicyAttachment("s3Policy", {
-    policyArn: "arn:aws:iam::aws:policy/AmazonS3FullAccess",
-    role: podIdentityRole
-})
-export const podIdentityRoleArn = podIdentityRole.arn;
-
-
-// used by RDS to publish metrics to CloudWatch
+/// DB role to publish metrics to CloudWatch
 const databaseMonitoringRole = new aws.iam.Role("databaseMonitoringRole", {
     assumeRolePolicy: {
         Statement:[

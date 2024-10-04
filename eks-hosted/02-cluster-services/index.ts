@@ -3,9 +3,6 @@ import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import { config } from "./config";
 import { RdsDatabase } from "./rds-db";
-import { FluentdCloudWatch } from "./fluentd-cloudwatch";
-import { ExternalDns } from "./external-dns";
-import { AlbIngressController } from "./alb-ing-cntlr";
 
 const projectName = pulumi.getProject();
 
@@ -47,13 +44,6 @@ const albServiceAccount = new k8s.core.v1.ServiceAccount("albServiceAccount", {
     }
 }, {provider: k8sprovider})
 
-const albPodIdentityAssociation = new aws.eks.PodIdentityAssociation("albPodIdentityAssociation", {
-    clusterName: config.clusterName,
-    serviceAccount: albServiceAccount.metadata.name,
-    roleArn: config.podIdentityRoleArn,
-    namespace: "kube-system"
-})
-
 const albHelm = new k8s.helm.v3.Release("albhelm", {
     repositoryOpts: {
         repo: "https://aws.github.io/eks-charts"
@@ -68,5 +58,5 @@ const albHelm = new k8s.helm.v3.Release("albhelm", {
         },
         vpcId: config.vpcId,
     }
-}, {provider: k8sprovider, dependsOn: [albPodIdentityAssociation]});
+}, {provider: k8sprovider});
 

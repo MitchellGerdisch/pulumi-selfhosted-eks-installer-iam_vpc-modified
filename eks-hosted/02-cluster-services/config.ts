@@ -22,5 +22,4 @@ export const config = {
     privateSubnetIds: pulumiConfig.requireObject<string[]>("privateSubnetIds"),
 
     databaseMonitoringRoleArn : pulumiConfig.require("databaseMonitoringRoleArn"),
-    podIdentityRoleArn: pulumiConfig.require("podIdentityRoleArn"),
 };

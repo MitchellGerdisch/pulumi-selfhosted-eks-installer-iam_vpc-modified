@@ -11,7 +11,6 @@ config:
   eksInstanceRoleName      : "mitchselfhost-instanceRole-d5fa363"
   eksServiceRoleName       : "mitchselfhost-eksRole-412112d"
   instanceProfileName      : "ng-standard-e85b320"
-  podIdentityRoleArn       : "arn:aws:iam::052848974346:role/podIdentityRole-7df6c5e"
   privateSubnetIds         : 
     - "subnet-08fd68c7f774e7aef"
     - "subnet-0394001e0f2604170"

@@ -47,7 +47,7 @@ const cluster = new eks.Cluster(`${projectName}`, {
 });
 
 // Export the cluster details.
-export const kubeconfig = cluster.kubeconfig.apply(JSON.stringify);
+export const kubeconfig = pulumi.secret(cluster.kubeconfig.apply(JSON.stringify));
 export const clusterName = cluster.core.cluster.name;
 export const region = aws.config.region;
 export const nodeSecurityGroupId = cluster.nodeSecurityGroup.id; // For RDS
@@ -113,12 +113,6 @@ const ngStandardPulumi = new eks.NodeGroup(`${projectName}-ng-standard-pulumi`, 
 ////////////
 // Enable necessary EKS addons
 // Note that "vpc-cni" is automatically installed by EKS and is not required to be installed.
-const eksPodIdentityAddon = new aws.eks.Addon("eksPodIdentityAddon", {
-    addonName: "eks-pod-identity-agent",
-    clusterName: clusterName,
-    addonVersion: "v1.3.2-eksbuild.2",
-}, {dependsOn: [ngStandard, ngStandardPulumi]});
-
 const coreDnsAddon = new aws.eks.Addon("coreDns", {
     addonName: "coredns",
     clusterName: clusterName,

@@ -24,7 +24,7 @@ export const config = {
     eksInstanceRoleName        : pulumiConfig.require("eksInstanceRoleName"),
     instanceProfileName        : pulumiConfig.require("instanceProfileName"),
     eksServiceRoleName         : pulumiConfig.require("eksServiceRoleName"),
-    podIdentityRoleArn         : pulumiConfig.require("podIdentityRoleArn"),
+    // podIdentityRoleArn         : pulumiConfig.require("podIdentityRoleArn"),
 
     // Needed to allow the K8s provider and humans to access the cluster.
     // This should be the arn of the role that can be used to interact with AWS.

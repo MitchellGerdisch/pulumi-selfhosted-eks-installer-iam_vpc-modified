@@ -60,6 +60,6 @@ export const config = {
     apiDisableEmailLogin: pulumiConfig.get("apiDisableEmailLogin") ?? 'false',
 
     // IAM
-    podIdentityRoleArn          : pulumiConfig.require("podIdentityRoleArn"),
+    // podIdentityRoleArn          : pulumiConfig.require("podIdentityRoleArn"),
 
 };

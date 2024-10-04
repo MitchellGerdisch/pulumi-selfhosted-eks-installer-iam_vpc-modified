@@ -1,13 +1,13 @@
 import * as aws from "@pulumi/aws";
 import * as k8s from "@pulumi/kubernetes";
 import * as kx from "@pulumi/kubernetesx";
-import * as tls from "@pulumi/tls";
 import { types } from "@pulumi/kubernetesx";
 import * as pulumi from "@pulumi/pulumi";
 import EnvMap = types.EnvMap;
 import { config } from "./config";
-// import * as rbac from "./rbac";
-import { configurePulumiSecretProvider } from "./secrets-management"
+
+// Set up the K8s secrets used by the applications.
+import { provider, licenseKeySecret, dbConnSecret, smtpConfig, apiEmailLoginConfig, consoleEmailLoginConfig, samlSsoConfig, recaptchaServiceConfig, recaptchaConsoleConfig,  secretsIntegration } from "./k8s-secrets";
 
 const migrationsImage = `pulumi/migrations:${config.imageTag}`;
 const apiImage = `pulumi/service:${config.imageTag}`;
@@ -22,109 +22,6 @@ const consolePort = 3000;
 const apiReplicas = config.apiReplicas;
 const consoleReplicas = config.consoleReplicas;
 
-// Create a k8s provider to the cluster.
-const provider = new k8s.Provider("provider", { kubeconfig: config.kubeconfig, deleteUnreachable: true });
-
-///////////////
-// K8s secrets used by the applications
-// Configure secrets provider, the component the Pulumi Service uses to encrypt stack secrets.
-const secretsIntegration = configurePulumiSecretProvider(config, provider)
-
-// Create a k8s Secret of the self-hosted Pulumi license.
-const licenseKeySecret = new kx.Secret("license-key", {
-    metadata: { namespace: config.appsNamespaceName },
-    stringData: { key: config.licenseKey }
-}, { provider });
-
-// Create a Secret from the DB connection information.
-const dbConnSecret = new kx.Secret("aurora-db-conn",
-    {
-        metadata: { namespace: config.appsNamespaceName },
-        stringData: {
-            host: config.dbConn.apply(db => db.host),
-            endpoint: config.dbConn.apply(db => `${db.host}:${db.port}`),
-            username: config.dbConn.apply(db => db.username),
-            password: config.dbConn.apply(db => db.password),
-        },
-    },
-    { provider },
-);
-
-let smtpConfig = {}
-if (config.smtpServer) {
-    const smtpSecret = new kx.Secret("smtp-conn",
-    {
-        metadata: { namespace: config.appsNamespaceName },
-        stringData: {
-            server: config.smtpServer,
-            username: config.smtpUsername,
-            password: config.smtpPassword,
-            genericsender: config.smtpGenericSender
-        },
-
-    }, { provider })
-    smtpConfig = {
-        "SMTP_SERVER": smtpSecret.asEnvValue("server"),
-        "SMTP_USERNAME": smtpSecret.asEnvValue("username"),
-        "SMTP_PASSWORD": smtpSecret.asEnvValue("password"),
-        "SMTP_GENERIC_SENDER": smtpSecret.asEnvValue("genericsender"),
-    }
-}
-
-const ssoPrivateKey = new tls.PrivateKey("ssoPrivateKey", { algorithm: "RSA", rsaBits: 2048 })
-const ssoCert = new tls.SelfSignedCert("ssoCert", {
-    allowedUses: ["cert_signing"],
-    privateKeyPem: ssoPrivateKey.privateKeyPem,
-    subject: {
-        commonName: `api.${config.hostedZoneDomainSubdomain}.${config.hostedZoneDomainName}`,
-    },
-    validityPeriodHours: (365*24)
-})
-const samlSsoSecret = new kx.Secret("saml-sso",
-{
-    metadata: { namespace: config.appsNamespaceName },
-    stringData: {
-        pubkey: ssoCert.certPem,
-        privatekey: ssoPrivateKey.privateKeyPem,
-    },
-
-}, { provider })
-const samlSsoConfig = {
-    "SAML_CERTIFICATE_PUBLIC_KEY": samlSsoSecret.asEnvValue("pubkey"),
-    "SAML_CERTIFICATE_PRIVATE_KEY": samlSsoSecret.asEnvValue("privatekey"),
-}
-
-const recaptchaSecret = new kx.Secret("recaptcha", 
-{
-    metadata: { namespace: config.appsNamespaceName },
-    stringData: {
-        siteKey: config.recaptchaSiteKey,
-        secretKey: config.recaptchaSecretKey
-    },
-
-}, { provider })
-const recaptchaServiceConfig = {
-    "RECAPTCHA_SECRET_KEY": recaptchaSecret.asEnvValue("secretKey"),
-    "LOGIN_RECAPTCHA_SECRET_KEY": recaptchaSecret.asEnvValue("secretKey"),
-}
-const recaptchaConsoleConfig = {
-    "RECAPTCHA_SITE_KEY": recaptchaSecret.asEnvValue("siteKey"),
-    "LOGIN_RECAPTCHA_SITE_KEY": recaptchaSecret.asEnvValue("siteKey"),
-}
-
-// Currently any non-empty value for the disable/hide email env variables will be treated as a "true"
-// When https://github.com/pulumi/pulumi-service/issues/7898 is fixed, then a simple line like 
-// "PULUMI_DISABLE_EMAIL_LOGIN": config.apiDisableEmailLogin
-// can be used.
-const apiEmailLoginConfig = {
-    "PULUMI_DISABLE_EMAIL_LOGIN": (config.apiDisableEmailLogin === "true" ? "true" : null),
-    "PULUMI_DISABLE_EMAIL_SIGNUP": (config.apiDisableEmailSignup === "true" ? "true" : null),
-}
-const consoleEmailLoginConfig = {
-    "PULUMI_HIDE_EMAIL_LOGIN": (config.consoleHideEmailLogin === "true" ? "true" : null),
-    "PULUMI_HIDE_EMAIL_SIGNUP": (config.consoleHideEmailSignup === "true" ? "true" : null),
-}
-
 ///////////////
 // Create S3 Buckets for the service checkpoints and policy packs.
 const checkpointsBucket = new aws.s3.Bucket(`pulumi-checkpoints`, {}, { protect: true});
@@ -137,18 +34,9 @@ const apiServiceAccount = new k8s.core.v1.ServiceAccount(apiName, {
     metadata: {
         namespace: config.appsNamespaceName,
         name: apiName,
-        // annotations: {
-        //     "eks.amazonaws.com/role-arn": config.podIdentityRoleArn,
-        // },
     },
 }, { provider });
 
-const saPodIdentityAssociation = new aws.eks.PodIdentityAssociation(apiName, {
-    clusterName: config.clusterName,
-    serviceAccount: apiServiceAccount.metadata.name,
-    roleArn: config.podIdentityRoleArn,
-    namespace: config.appsNamespaceName,
-})
 
 //////////////
 // Environment variables for the API service.
@@ -181,7 +69,6 @@ const serviceEnv = pulumi
     });
 
    
-
 ////////////
 // Deploy services
 // Minimum System Requirements (per replica):
@@ -555,4 +442,4 @@ const webkeysCleanup = new k8s.batch.v1.Job("webkeys-cleanup", {
         },
         backoffLimit: 0, // Number of retries before considering the job as failed
     },
-}, { provider: provider});
+}, { provider: provider, dependsOn:[apiDeployment] });

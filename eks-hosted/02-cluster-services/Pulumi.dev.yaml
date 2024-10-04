@@ -5,7 +5,6 @@ config:
   dbInstanceType: db.t4g.medium
 
   databaseMonitoringRoleArn: "arn:aws:iam::052848974346:role/databaseMonitoringRole-740edc0"
-  podIdentityRoleArn       : "arn:aws:iam::052848974346:role/podIdentityRole-7df6c5e"
   privateSubnetIds         : 
     - "subnet-08fd68c7f774e7aef"
     - "subnet-0394001e0f2604170"
